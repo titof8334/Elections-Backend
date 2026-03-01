@@ -1,4 +1,5 @@
 import Vapor
+import Fluent
 
 struct PublicController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {

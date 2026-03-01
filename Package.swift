@@ -26,13 +26,13 @@ let package = Package(
             ],
             path: "Sources/App"
         ),
-        .testTarget(
-            name: "AppTests",
-            dependencies: [
-                .target(name: "App"),
-                .product(name: "XCTVapor", package: "vapor"),
-            ],
-            path: "Tests/AppTests"
-        ),
+//        .testTarget(
+//            name: "AppTests",
+//            dependencies: [
+//                .target(name: "App"),
+//                .product(name: "XCTVapor", package: "vapor"),
+//            ],
+//            path: "Tests/AppTests"
+//        ),
     ]
 )

@@ -11,6 +11,13 @@ struct LoginResponse: Content {
     let user: UserDTO
 }
 
+struct MeResponse: Content {
+    let role: String
+    let bureaux: [UUID]
+    let nom: String
+    let prenom: String?
+}
+
 struct UserDTO: Content {
     let id: UUID
     let nom: String

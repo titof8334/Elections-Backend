@@ -1,10 +1,12 @@
 import Vapor
+import Fluent
 import JWT
 
 struct AuthController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         routes.post("login", use: login)
         routes.post("register", use: register) // Admin only via admin controller
+        routes.get("me", use: me)
     }
 
     func login(req: Request) async throws -> LoginResponse {
@@ -64,5 +66,32 @@ struct AuthController: RouteCollection {
         }
 
         return UserDTO(id: user.id!, nom: user.nom, email: user.email, role: user.role, bureaux: createReq.bureauIds ?? [])
+    }
+    
+    func me(req: Request) async throws -> MeResponse {
+        // Extract Bearer token
+        guard let bearerToken = req.headers.bearerAuthorization?.token else {
+            throw Abort(.unauthorized, reason: "Token manquant")
+        }
+        
+        // Validate Zitadel token via JWKS
+        let zitadelPayload = try await req.zitadel.validateToken(bearerToken)
+        
+        // Find user by Zitadel sub
+        guard let user = try await User.query(on: req.db)
+            .filter(\.$zitadelSub == zitadelPayload.sub.value)
+            .with(\.$bureaux)
+            .first() else {
+            throw Abort(.notFound, reason: "Utilisateur non trouvé")
+        }
+        
+        let bureauIds = user.bureaux.compactMap { $0.id }
+        
+        return MeResponse(
+            role: user.role,
+            bureaux: bureauIds,
+            nom: user.nom,
+            prenom: user.prenom
+        )
     }
 }

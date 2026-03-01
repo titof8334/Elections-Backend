@@ -1,32 +1,36 @@
 import Vapor
 import Fluent
 
-final class User: Model, Content {
+final class User: Model, Content, @unchecked Sendable {
     static let schema = "users"
 
-    @ID(format: .uuid) var id: UUID?
+    @ID(key: .id) var id: UUID?
     @Field(key: "nom") var nom: String
     @Field(key: "email") var email: String
     @Field(key: "password_hash") var passwordHash: String
     @Field(key: "role") var role: String // "admin" | "scrutateur"
+    @OptionalField(key: "zitadel_sub") var zitadelSub: String? // Zitadel User ID
+    @OptionalField(key: "prenom") var prenom: String?
     @Siblings(through: UserBureau.self, from: \.$user, to: \.$bureau) var bureaux: [Bureau]
     @Timestamp(key: "created_at", on: .create) var createdAt: Date?
 
     init() {}
 
-    init(id: UUID? = nil, nom: String, email: String, passwordHash: String, role: String = "scrutateur") {
+    init(id: UUID? = nil, nom: String, email: String, passwordHash: String, role: String = "scrutateur", zitadelSub: String? = nil, prenom: String? = nil) {
         self.id = id
         self.nom = nom
         self.email = email
         self.passwordHash = passwordHash
         self.role = role
+        self.zitadelSub = zitadelSub
+        self.prenom = prenom
     }
 }
 
-final class UserBureau: Model {
+final class UserBureau: Model, @unchecked Sendable {
     static let schema = "user_bureau"
 
-    @ID(format: .uuid) var id: UUID?
+    @ID(key: .id) var id: UUID?
     @Parent(key: "user_id") var user: User
     @Parent(key: "bureau_id") var bureau: Bureau
 

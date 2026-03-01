@@ -2,10 +2,10 @@ import Vapor
 import Fluent
 
 // Taux de participation à différentes heures
-final class Participation: Model, Content {
+final class Participation: Model, Content, @unchecked Sendable {
     static let schema = "participations"
 
-    @ID(format: .uuid) var id: UUID?
+    @ID(key: .id) var id: UUID?
     @Parent(key: "bureau_id") var bureau: Bureau
     @Field(key: "heure") var heure: String // "09:00", "11:00", "14:00", "17:00", "final"
     @Field(key: "votants") var votants: Int
@@ -22,10 +22,10 @@ final class Participation: Model, Content {
 }
 
 // Résultats partiels/finaux par candidat
-final class Resultat: Model, Content {
+final class Resultat: Model, Content, @unchecked Sendable {
     static let schema = "resultats"
 
-    @ID(format: .uuid) var id: UUID?
+    @ID(key: .id) var id: UUID?
     @Parent(key: "bureau_id") var bureau: Bureau
     @Field(key: "candidat_id") var candidatId: UUID
     @Field(key: "voix") var voix: Int
@@ -46,10 +46,10 @@ final class Resultat: Model, Content {
 }
 
 // Candidats
-final class Candidat: Model, Content {
+final class Candidat: Model, Content, @unchecked Sendable {
     static let schema = "candidats"
 
-    @ID(format: .uuid) var id: UUID?
+    @ID(key: .id) var id: UUID?
     @Field(key: "nom") var nom: String
     @Field(key: "prenom") var prenom: String
     @Field(key: "liste") var liste: String

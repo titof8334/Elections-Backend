@@ -113,3 +113,20 @@ struct SeedAdminUser: AsyncMigration {
         try await User.query(on: database).filter(\.$email == "admin@elections.local").delete()
     }
 }
+
+struct AddZitadelFieldsToUser: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        try await database.schema("users")
+            .field("zitadel_sub", .string)
+            .field("prenom", .string)
+            .unique(on: "zitadel_sub")
+            .update()
+    }
+
+    func revert(on database: Database) async throws {
+        try await database.schema("users")
+            .deleteField("zitadel_sub")
+            .deleteField("prenom")
+            .update()
+    }
+}

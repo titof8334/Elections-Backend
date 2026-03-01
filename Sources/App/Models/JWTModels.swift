@@ -34,3 +34,16 @@ struct AdminMiddleware: AsyncMiddleware {
         return try await next.respond(to: request)
     }
 }
+
+// Zitadel JWT Payload
+struct ZitadelPayload: JWTPayload, Authenticatable {
+    var sub: SubjectClaim  // Zitadel User ID
+    var exp: ExpirationClaim
+    var iat: IssuedAtClaim?
+    var iss: IssuerClaim?
+    var aud: AudienceClaim?
+    
+    func verify(using signer: JWTSigner) throws {
+        try self.exp.verifyNotExpired()
+    }
+}

@@ -4,6 +4,10 @@ import FluentSQLiteDriver
 import JWT
 
 public func configure(_ app: Application) throws {
+    // Server Configuration
+    app.http.server.configuration.hostname = "0.0.0.0"
+    app.http.server.configuration.port = 8084
+    
     // CORS
     let corsConfiguration = CORSMiddleware.Configuration(
         allowedOrigin: .all,
@@ -14,6 +18,9 @@ public func configure(_ app: Application) throws {
 
     // JWT
     app.jwt.signers.use(.hs256(key: Environment.get("JWT_SECRET") ?? "elections-secret-key-change-in-production"))
+    
+    // Initialize Zitadel Service
+    _ = app.zitadel
 
     // Database
     app.databases.use(.sqlite(.file("elections.sqlite")), as: .sqlite)
@@ -25,6 +32,7 @@ public func configure(_ app: Application) throws {
     app.migrations.add(CreateResultat())
     app.migrations.add(CreateCandidat())
     app.migrations.add(SeedAdminUser())
+    app.migrations.add(AddZitadelFieldsToUser())
 
     try app.autoMigrate().wait()
 

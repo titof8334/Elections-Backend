@@ -1,10 +1,10 @@
 import Vapor
 import Fluent
 
-final class Bureau: Model, Content {
+final class Bureau: Model, Content, @unchecked Sendable {
     static let schema = "bureaux"
 
-    @ID(format: .uuid) var id: UUID?
+    @ID(key: .id) var id: UUID?
     @Field(key: "numero") var numero: Int
     @Field(key: "nom") var nom: String
     @Field(key: "adresse") var adresse: String
