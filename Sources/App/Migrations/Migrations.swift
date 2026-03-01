@@ -105,12 +105,12 @@ struct CreateCandidat: AsyncMigration {
 struct SeedAdminUser: AsyncMigration {
     func prepare(on database: Database) async throws {
         let hash = try Bcrypt.hash("admin123")
-        let admin = User(nom: "Administrateur", email: "admin@elections.local", passwordHash: hash, role: "admin")
+        let admin = User(nom: "Administrateur", email: "christ.arnal@laposte.net", passwordHash: hash, role: "admin")
         try await admin.save(on: database)
     }
 
     func revert(on database: Database) async throws {
-        try await User.query(on: database).filter(\.$email == "admin@elections.local").delete()
+        try await User.query(on: database).filter(\.$email == "christ.arnal@laposte.net").delete()
     }
 }
 
