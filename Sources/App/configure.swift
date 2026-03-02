@@ -3,7 +3,7 @@ import Fluent
 import FluentSQLiteDriver
 import JWT
 
-public func configure(_ app: Application) throws {
+public func configure(_ app: Application) async throws {
     // Server Configuration
     app.http.server.configuration.hostname = "0.0.0.0"
     app.http.server.configuration.port = 8084
@@ -23,8 +23,9 @@ public func configure(_ app: Application) throws {
     _ = app.zitadel
 
     // Database
-    app.databases.use(.sqlite(.file("elections.sqlite")), as: .sqlite)
-
+    let dbPath = Environment.get("DB_PATH") ?? "elections.sqlite"
+    app.databases.use(.sqlite(.file(dbPath)), as: .sqlite)
+    app.logger.info("📦 Database: SQLite at \(dbPath)")
     // Migrations
     app.migrations.add(CreateUser())
     app.migrations.add(CreateBureau())
@@ -32,8 +33,6 @@ public func configure(_ app: Application) throws {
     app.migrations.add(CreateResultat())
     app.migrations.add(CreateCandidat())
     app.migrations.add(SeedAdminUser())
-    app.migrations.add(AddZitadelFieldsToUser())
-
     try app.autoMigrate().wait()
 
     // Routes

@@ -6,11 +6,14 @@ struct CreateUser: AsyncMigration {
         try await database.schema("users")
             .id()
             .field("nom", .string, .required)
+            .field("prenom", .string)
             .field("email", .string, .required)
             .field("password_hash", .string, .required)
+            .field("zitadel_sub", .string)
             .field("role", .string, .required)
             .field("created_at", .datetime)
             .unique(on: "email")
+            .unique(on: "zitadel_sub")
             .create()
 
         try await database.schema("user_bureau")
@@ -111,22 +114,5 @@ struct SeedAdminUser: AsyncMigration {
 
     func revert(on database: Database) async throws {
         try await User.query(on: database).filter(\.$email == "christ.arnal@laposte.net").delete()
-    }
-}
-
-struct AddZitadelFieldsToUser: AsyncMigration {
-    func prepare(on database: Database) async throws {
-        try await database.schema("users")
-            .field("zitadel_sub", .string)
-            .field("prenom", .string)
-            .unique(on: "zitadel_sub")
-            .update()
-    }
-
-    func revert(on database: Database) async throws {
-        try await database.schema("users")
-            .deleteField("zitadel_sub")
-            .deleteField("prenom")
-            .update()
     }
 }
