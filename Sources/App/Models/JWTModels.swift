@@ -48,7 +48,16 @@ struct ZitadelPayload: JWTPayload, Authenticatable {
     var exp: ExpirationClaim
     var iat: IssuedAtClaim?
     var iss: IssuerClaim?
-    var aud: AudienceClaim?
+    var aud: [String]?
+    var azp: String?
+    var client_id: String?
+    var jti: String?
+    var nbf: Int?
+    var scope: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case sub, exp, iat, iss, aud, azp, client_id, jti, nbf, scope
+    }
     
     func verify(using signer: JWTSigner) throws {
         try self.exp.verifyNotExpired()

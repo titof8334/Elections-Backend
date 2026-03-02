@@ -38,18 +38,30 @@ actor ZitadelServiceActor {
 
     /// Validates a Zitadel JWT token and returns the payload
     func validateToken(_ token: String) async throws -> ZitadelPayload {
-        let jwks = try await fetchJWKS()
+        do {
+            app.logger.info("Fetching JWKS from Zitadel...")
+            let jwks = try await fetchJWKS()
+            app.logger.info("JWKS fetched successfully, \(jwks.keys.count) keys found")
 
-        // Create signers from JWKS
-        let signers = JWTSigners()
-        for key in jwks.keys {
-            try signers.use(jwk: key)
+            // Create signers from JWKS
+            let signers = JWTSigners()
+            for key in jwks.keys {
+                try signers.use(jwk: key)
+            }
+
+            app.logger.info("Attempting to verify token...")
+            // Verify and decode the token
+            let payload = try signers.verify(token, as: ZitadelPayload.self)
+            app.logger.info("Token verified successfully. Sub: \(payload.sub.value)")
+
+            return payload
+        } catch let error as JWTError {
+            app.logger.error("JWT Error: \(error)")
+            throw Abort(.unauthorized, reason: "Invalid JWT token: \(error.localizedDescription)")
+        } catch {
+            app.logger.error("Token validation error: \(error)")
+            throw Abort(.unauthorized, reason: "Token validation failed: \(error.localizedDescription)")
         }
-
-        // Verify and decode the token
-        let payload = try signers.verify(token, as: ZitadelPayload.self)
-
-        return payload
     }
 }
 
