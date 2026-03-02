@@ -70,13 +70,19 @@ struct AuthController: RouteCollection {
     
     func me(req: Request) async throws -> MeResponse {
         // Extract Bearer token
+        print("Me")
+
         guard let bearerToken = req.headers.bearerAuthorization?.token else {
             throw Abort(.unauthorized, reason: "Token manquant")
         }
-        
+        print("Bearer présent")
+        print(bearerToken)
+
         // Validate Zitadel token via JWKS
         let zitadelPayload = try await req.zitadel.validateToken(bearerToken)
-        
+        print("zitadelPayload OK")
+        print(zitadelPayload)
+
         // Find user by Zitadel sub
         guard let user = try await User.query(on: req.db)
             .filter(\.$zitadelSub == zitadelPayload.sub.value)

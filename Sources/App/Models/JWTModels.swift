@@ -16,11 +16,18 @@ struct UserPayload: JWTPayload, Authenticatable {
 
 struct JWTMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
+        print("JWTMiddleware")
         guard let token = request.headers.bearerAuthorization?.token else {
             throw Abort(.unauthorized, reason: "Token manquant")
         }
+        print("Token présent")
+
         let payload = try request.jwt.verify(token, as: UserPayload.self)
+        print("Payload òk")
+        print(payload)
+
         request.auth.login(payload)
+        print("logged in")
         return try await next.respond(to: request)
     }
 }
