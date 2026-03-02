@@ -9,3 +9,4 @@ DerivedData/
 .netrc
 elections.sqlite
 *.sqlite
+.env

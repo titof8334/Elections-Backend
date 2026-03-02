@@ -4,6 +4,7 @@ import JWTKit
 
 actor ZitadelServiceActor {
     let jwksURL = "https://auth.carnal.cloud/oauth/v2/keys"
+    let introspectionURL = "https://auth.carnal.cloud/oauth/v2/introspect"
     let app: Application
 
     private var jwksCache: JWKS?
@@ -36,33 +37,102 @@ actor ZitadelServiceActor {
         return jwks
     }
 
+    /// Validates a Zitadel token via introspection endpoint (for opaque tokens)
+    func introspectToken(_ token: String) async throws -> IntrospectionResponse {
+        app.logger.info("Token introspection via Zitadel...")
+
+        // Get client credentials from environment
+        guard let clientId = Environment.get("ZITADEL_CLIENT_ID"),
+              let clientSecret = Environment.get("ZITADEL_CLIENT_SECRET") else {
+            throw Abort(.internalServerError, reason: "Missing Zitadel client credentials")
+        }
+
+        var headers = HTTPHeaders()
+        headers.basicAuthorization = .init(username: clientId, password: clientSecret)
+        headers.contentType = .urlEncodedForm
+
+        let body = "token=\(token)"
+
+        let response = try await app.client.post(URI(string: introspectionURL), headers: headers) { req in
+            try req.content.encode(body, as: .urlEncodedForm)
+        }
+
+        guard response.status == .ok else {
+            app.logger.error("Introspection failed with status: \(response.status)")
+            throw Abort(.unauthorized, reason: "Token introspection failed")
+        }
+
+        let introspection = try response.content.decode(IntrospectionResponse.self)
+
+        guard introspection.active else {
+            throw Abort(.unauthorized, reason: "Token is not active")
+        }
+
+        app.logger.info("Token introspection successful. Sub: \(introspection.sub)")
+        return introspection
+    }
+
     /// Validates a Zitadel JWT token and returns the payload
     func validateToken(_ token: String) async throws -> ZitadelPayload {
-        do {
-            app.logger.info("Fetching JWKS from Zitadel...")
-            let jwks = try await fetchJWKS()
-            app.logger.info("JWKS fetched successfully, \(jwks.keys.count) keys found")
+        // Check if token looks like a JWT (has 2 dots)
+        let parts = token.split(separator: ".")
 
-            // Create signers from JWKS
-            let signers = JWTSigners()
-            for key in jwks.keys {
-                try signers.use(jwk: key)
+        if parts.count == 3 {
+            // Try JWT validation
+            do {
+                app.logger.info("Token appears to be JWT format, attempting JWKS validation...")
+                let jwks = try await fetchJWKS()
+                app.logger.info("JWKS fetched successfully, \(jwks.keys.count) keys found")
+
+                let signers = JWTSigners()
+                for key in jwks.keys {
+                    try signers.use(jwk: key)
+                }
+
+                app.logger.info("Attempting to verify JWT token...")
+                let payload = try signers.verify(token, as: ZitadelPayload.self)
+                app.logger.info("JWT verified successfully. Sub: \(payload.sub.value)")
+
+                return payload
+            } catch let error as JWTError {
+                app.logger.error("JWT validation failed: \(error)")
+                throw Abort(.unauthorized, reason: "Invalid JWT token: \(error.localizedDescription)")
             }
+        } else {
+            // Token is opaque, use introspection
+            app.logger.info("Token appears to be opaque, using introspection...")
+            let introspection = try await introspectToken(token)
 
-            app.logger.info("Attempting to verify token...")
-            // Verify and decode the token
-            let payload = try signers.verify(token, as: ZitadelPayload.self)
-            app.logger.info("Token verified successfully. Sub: \(payload.sub.value)")
-
-            return payload
-        } catch let error as JWTError {
-            app.logger.error("JWT Error: \(error)")
-            throw Abort(.unauthorized, reason: "Invalid JWT token: \(error.localizedDescription)")
-        } catch {
-            app.logger.error("Token validation error: \(error)")
-            throw Abort(.unauthorized, reason: "Token validation failed: \(error.localizedDescription)")
+            // Convert introspection response to ZitadelPayload
+            return ZitadelPayload(
+                sub: .init(value: introspection.sub),
+                exp: .init(value: Date(timeIntervalSince1970: TimeInterval(introspection.exp))),
+                iat: introspection.iat.map { .init(value: Date(timeIntervalSince1970: TimeInterval($0))) },
+                iss: introspection.iss.map { .init(value: $0) },
+                aud: introspection.aud,
+                azp: introspection.client_id,
+                client_id: introspection.client_id,
+                jti: nil,
+                nbf: introspection.nbf,
+                scope: introspection.scope
+            )
         }
     }
+}
+
+// Introspection response from Zitadel
+struct IntrospectionResponse: Content {
+    let active: Bool
+    let sub: String
+    let exp: Int
+    let iat: Int?
+    let iss: String?
+    let aud: [String]?
+    let client_id: String?
+    let scope: String?
+    let nbf: Int?
+    let token_type: String?
+    let username: String?
 }
 
 // Storage key for ZitadelService
