@@ -102,7 +102,7 @@ struct AuthController: RouteCollection {
             dispDelegue: user.dispDelegue
         )
     }
-    
+        
     func me(req: Request) async throws -> MeResponse {
         // Extract Bearer token
         guard let bearerToken = req.headers.bearerAuthorization?.token else {
@@ -186,7 +186,8 @@ struct AuthController: RouteCollection {
             role: user.role,
             bureaux: bureauIds,
             nom: user.nom,
-            prenom: user.prenom
+            prenom: user.prenom,
+            id: user.id ?? UUID()
         )
     }
 }
