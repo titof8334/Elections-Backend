@@ -1,4 +1,5 @@
 import Vapor
+import Fluent
 import JWT
 
 struct UserPayload: JWTPayload, Authenticatable {
@@ -33,6 +34,49 @@ struct JWTMiddleware: AsyncMiddleware {
 }
 
 struct AdminMiddleware: AsyncMiddleware {
+    func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
+        let payload = try request.auth.require(UserPayload.self)
+        guard payload.role == "admin" else {
+            throw Abort(.forbidden, reason: "Accès administrateur requis")
+        }
+        return try await next.respond(to: request)
+    }
+}
+
+// Zitadel Authentication Middleware
+struct ZitadelAuthMiddleware: AsyncMiddleware {
+    func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
+        guard let token = request.headers.bearerAuthorization?.token else {
+            throw Abort(.unauthorized, reason: "Token manquant")
+        }
+        
+        // Validate token with Zitadel
+        let zitadelPayload = try await request.zitadel.validateToken(token)
+        
+        // Find user in database
+        guard let user = try await User.query(on: request.db)
+            .filter(\.$zitadelSub == zitadelPayload.sub.value)
+            .first() else {
+            throw Abort(.unauthorized, reason: "Utilisateur non trouvé ou non autorisé")
+        }
+        
+        // Create internal UserPayload for compatibility with existing code
+        let userPayload = UserPayload(
+            sub: .init(value: user.id!.uuidString),
+            exp: zitadelPayload.exp,
+            userId: user.id!,
+            email: user.email,
+            role: user.role,
+            nom: user.nom
+        )
+        
+        request.auth.login(userPayload)
+        return try await next.respond(to: request)
+    }
+}
+
+// Admin middleware for Zitadel users
+struct ZitadelAdminMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
         let payload = try request.auth.require(UserPayload.self)
         guard payload.role == "admin" else {

@@ -5,12 +5,12 @@ public func routes(_ app: Application) throws {
     let publicAPI = app.grouped("api", "v1")
     try publicAPI.register(collection: PublicController())
 
-    // Auth routes
+    // Auth routes (public - no authentication required)
     let authRoutes = publicAPI.grouped("auth")
     try authRoutes.register(collection: AuthController())
 
-    // Protected routes
-    let protected = publicAPI.grouped(JWTMiddleware())
+    // Protected routes with Zitadel authentication
+    let protected = publicAPI.grouped(ZitadelAuthMiddleware())
     try protected.register(collection: BureauController())
     try protected.register(collection: ParticipationController())
     try protected.register(collection: ResultatController())
