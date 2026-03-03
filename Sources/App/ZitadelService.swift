@@ -6,7 +6,6 @@ actor ZitadelServiceActor {
     let jwksURL = "https://auth.carnal.cloud/oauth/v2/keys"
     let introspectionURL = "https://auth.carnal.cloud/oauth/v2/introspect"
     let app: Application
-
     private var jwksCache: JWKS?
     private var lastFetch: Date?
     private let cacheDuration: TimeInterval = 3600 // 1 hour
@@ -47,24 +46,36 @@ actor ZitadelServiceActor {
             throw Abort(.internalServerError, reason: "Missing Zitadel client credentials")
         }
 
+        app.logger.info("Using client_id: \(clientId)")
+
         var headers = HTTPHeaders()
         headers.basicAuthorization = .init(username: clientId, password: clientSecret)
         headers.contentType = .urlEncodedForm
 
-        let body = "token=\(token)"
+        // Prepare form data
+        struct IntrospectionRequest: Content {
+            let token: String
+        }
+
+        let requestData = IntrospectionRequest(token: token)
 
         let response = try await app.client.post(URI(string: introspectionURL), headers: headers) { req in
-            try req.content.encode(body, as: .urlEncodedForm)
+            try req.content.encode(requestData, as: .urlEncodedForm)
         }
 
         guard response.status == .ok else {
             app.logger.error("Introspection failed with status: \(response.status)")
+            if let body = response.body {
+                let errorMessage = String(buffer: body)
+                app.logger.error("Error response body: \(errorMessage)")
+            }
             throw Abort(.unauthorized, reason: "Token introspection failed")
         }
 
         let introspection = try response.content.decode(IntrospectionResponse.self)
 
         guard introspection.active else {
+            app.logger.warning("Token is not active")
             throw Abort(.unauthorized, reason: "Token is not active")
         }
 
