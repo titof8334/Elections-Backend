@@ -5,6 +5,7 @@ import JWTKit
 actor ZitadelServiceActor {
     let jwksURL = "https://auth.carnal.cloud/oauth/v2/keys"
     let introspectionURL = "https://auth.carnal.cloud/oauth/v2/introspect"
+    let userInfoURL = "https://auth.carnal.cloud/oidc/v1/userinfo"
     let app: Application
     private var jwksCache: JWKS?
     private var lastFetch: Date?
@@ -129,6 +130,30 @@ actor ZitadelServiceActor {
             )
         }
     }
+
+    /// Fetches user information from Zitadel userinfo endpoint
+    func fetchUserInfo(accessToken: String) async throws -> UserInfoResponse {
+        app.logger.info("Fetching user info from Zitadel...")
+
+        var headers = HTTPHeaders()
+        headers.bearerAuthorization = .init(token: accessToken)
+
+        let response = try await app.client.get(URI(string: userInfoURL), headers: headers)
+
+        guard response.status == .ok else {
+            app.logger.error("UserInfo request failed with status: \(response.status)")
+            if let body = response.body {
+                let errorMessage = String(buffer: body)
+                app.logger.error("Error response body: \(errorMessage)")
+            }
+            throw Abort(.internalServerError, reason: "Failed to fetch user info")
+        }
+
+        let userInfo = try response.content.decode(UserInfoResponse.self)
+        app.logger.info("User info fetched successfully. Email: \(userInfo.email ?? "none")")
+
+        return userInfo
+    }
 }
 
 // Introspection response from Zitadel
@@ -144,6 +169,19 @@ struct IntrospectionResponse: Content {
     let nbf: Int?
     let token_type: String?
     let username: String?
+}
+
+// UserInfo response from Zitadel OIDC endpoint
+struct UserInfoResponse: Content {
+    let sub: String
+    let email: String?
+    let email_verified: Bool?
+    let given_name: String?
+    let family_name: String?
+    let name: String?
+    let preferred_username: String?
+    let picture: String?
+    let locale: String?
 }
 
 // Storage key for ZitadelService

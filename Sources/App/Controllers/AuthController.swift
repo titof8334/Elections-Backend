@@ -70,25 +70,79 @@ struct AuthController: RouteCollection {
     
     func me(req: Request) async throws -> MeResponse {
         // Extract Bearer token
-        print("Me")
-
         guard let bearerToken = req.headers.bearerAuthorization?.token else {
             throw Abort(.unauthorized, reason: "Token manquant")
         }
-        print("Bearer présent")
-        print(bearerToken)
 
-        // Validate Zitadel token via JWKS
+        // Validate Zitadel token via JWKS or introspection
         let zitadelPayload = try await req.zitadel.validateToken(bearerToken)
-        print("zitadelPayload OK")
-        print(zitadelPayload)
+        req.logger.info("Token validated. Sub: \(zitadelPayload.sub.value)")
 
-        // Find user by Zitadel sub
-        guard let user = try await User.query(on: req.db)
+        // Find or create user by Zitadel sub
+        let user: User
+        
+        // Step 1: Try to find user by zitadelSub
+        if let existingUser = try await User.query(on: req.db)
             .filter(\.$zitadelSub == zitadelPayload.sub.value)
             .with(\.$bureaux)
-            .first() else {
-            throw Abort(.notFound, reason: "Utilisateur non trouvé")
+            .first() {
+            user = existingUser
+            req.logger.info("User found by zitadelSub: \(user.email)")
+        } else {
+            // Step 2: User not found by zitadelSub, try to get email from token
+            // Note: Email might be in a userinfo endpoint call, not directly in the token
+            // For now, we'll need to make an additional call to Zitadel's userinfo endpoint
+            
+            let userInfo = try await req.zitadel.fetchUserInfo(accessToken: bearerToken)
+            req.logger.info("Fetched user info. Email: \(userInfo.email ?? "none")")
+            
+            // Step 3: Try to find existing user by email (to link accounts)
+            if let email = userInfo.email,
+               let existingUserByEmail = try await User.query(on: req.db)
+                .filter(\.$email == email)
+                .with(\.$bureaux)
+                .first() {
+                // Link existing user to Zitadel
+                req.logger.info("Found existing user by email, linking to Zitadel sub")
+                existingUserByEmail.zitadelSub = zitadelPayload.sub.value
+                
+                // Update name if available in userinfo
+                if let givenName = userInfo.given_name {
+                    existingUserByEmail.prenom = givenName
+                }
+                if let familyName = userInfo.family_name {
+                    existingUserByEmail.nom = familyName
+                }
+                
+                try await existingUserByEmail.save(on: req.db)
+                user = existingUserByEmail
+                req.logger.info("User account linked to Zitadel")
+            } else {
+                // Step 4: Create new user
+                req.logger.info("Creating new user with sub: \(zitadelPayload.sub.value)")
+                
+                let newUser = User(
+                    nom: userInfo.family_name ?? "Utilisateur",
+                    email: userInfo.email ?? "user-\(zitadelPayload.sub.value)@zitadel.local",
+                    passwordHash: "",  // No password for Zitadel users
+                    role: "scrutateur",  // Default role
+                    zitadelSub: zitadelPayload.sub.value,
+                    prenom: userInfo.given_name
+                )
+                
+                try await newUser.save(on: req.db)
+                
+                // Reload with relations
+                guard let savedUser = try await User.query(on: req.db)
+                    .filter(\.$zitadelSub == zitadelPayload.sub.value)
+                    .with(\.$bureaux)
+                    .first() else {
+                    throw Abort(.internalServerError, reason: "Failed to create user")
+                }
+                
+                user = savedUser
+                req.logger.info("New user created with id: \(user.id?.uuidString ?? "unknown")")
+            }
         }
         
         let bureauIds = user.bureaux.compactMap { $0.id }
