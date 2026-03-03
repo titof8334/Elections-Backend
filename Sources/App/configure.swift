@@ -33,6 +33,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateResultat())
     app.migrations.add(CreateCandidat())
     app.migrations.add(SeedAdminUser())
+    app.migrations.add(AddDispFieldsToUser())
     try app.autoMigrate().wait()
 
     // Routes

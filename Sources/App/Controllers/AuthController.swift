@@ -37,7 +37,17 @@ struct AuthController: RouteCollection {
 
         return LoginResponse(
             token: token,
-            user: UserDTO(id: user.id!, nom: user.nom, email: user.email, role: user.role, bureaux: bureauIds)
+            user: UserDTO(
+                id: user.id!,
+                nom: user.nom,
+                email: user.email,
+                role: user.role,
+                bureaux: bureauIds,
+                prenom: user.prenom,
+                dispBureauId: user.$dispBureau.id,
+                dispAssesseur: user.dispAssesseur,
+                dispDelegue: user.dispDelegue
+            )
         )
     }
 
@@ -53,7 +63,22 @@ struct AuthController: RouteCollection {
         }
 
         let hash = try Bcrypt.hash(createReq.password)
-        let user = User(nom: createReq.nom, email: createReq.email, passwordHash: hash, role: createReq.role ?? "scrutateur")
+        let user = User(
+            nom: createReq.nom,
+            email: createReq.email,
+            passwordHash: hash,
+            role: createReq.role ?? "scrutateur",
+            zitadelSub: nil,
+            prenom: createReq.prenom,
+            dispAssesseur: createReq.dispAssesseur ?? false,
+            dispDelegue: createReq.dispDelegue ?? false
+        )
+        
+        // Set dispBureau if provided
+        if let dispBureauId = createReq.dispBureauId {
+            user.$dispBureau.id = dispBureauId
+        }
+        
         try await user.save(on: req.db)
 
         // Associate bureaux if provided
@@ -65,7 +90,17 @@ struct AuthController: RouteCollection {
             }
         }
 
-        return UserDTO(id: user.id!, nom: user.nom, email: user.email, role: user.role, bureaux: createReq.bureauIds ?? [])
+        return UserDTO(
+            id: user.id!,
+            nom: user.nom,
+            email: user.email,
+            role: user.role,
+            bureaux: createReq.bureauIds ?? [],
+            prenom: user.prenom,
+            dispBureauId: user.$dispBureau.id,
+            dispAssesseur: user.dispAssesseur,
+            dispDelegue: user.dispDelegue
+        )
     }
     
     func me(req: Request) async throws -> MeResponse {

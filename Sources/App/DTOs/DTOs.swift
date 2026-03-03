@@ -24,6 +24,10 @@ struct UserDTO: Content {
     let email: String
     let role: String
     let bureaux: [UUID]
+    let prenom: String?
+    let dispBureauId: UUID?
+    let dispAssesseur: Bool?
+    let dispDelegue: Bool?
 }
 
 // Bureau
@@ -155,4 +159,20 @@ struct CreateUserRequest: Content {
     let password: String
     let role: String?
     let bureauIds: [UUID]?
+    let prenom: String?
+    let dispBureauId: UUID?
+    let dispAssesseur: Bool?
+    let dispDelegue: Bool?
 }
+// Update user
+struct UpdateUserRequest: Content {
+    let nom: String?
+    let email: String?
+    let role: String?
+    let bureauIds: [UUID]?
+    let prenom: String?
+    let dispBureauId: UUID?
+    let dispAssesseur: Bool?
+    let dispDelegue: Bool?
+}
+

@@ -11,12 +11,15 @@ final class User: Model, Content, @unchecked Sendable {
     @Field(key: "role") var role: String // "admin" | "scrutateur"
     @OptionalField(key: "zitadel_sub") var zitadelSub: String? // Zitadel User ID
     @OptionalField(key: "prenom") var prenom: String?
+    @OptionalParent(key: "disp_bureau_id") var dispBureau: Bureau? // Bureau de disposition
+    @OptionalField(key: "disp_assesseur") var dispAssesseur: Bool? // Disposition assesseur
+    @OptionalField(key: "disp_delegue") var dispDelegue: Bool? // Disposition délégué
     @Siblings(through: UserBureau.self, from: \.$user, to: \.$bureau) var bureaux: [Bureau]
     @Timestamp(key: "created_at", on: .create) var createdAt: Date?
 
     init() {}
 
-    init(id: UUID? = nil, nom: String, email: String, passwordHash: String, role: String = "scrutateur", zitadelSub: String? = nil, prenom: String? = nil) {
+    init(id: UUID? = nil, nom: String, email: String, passwordHash: String, role: String = "scrutateur", zitadelSub: String? = nil, prenom: String? = nil, dispAssesseur: Bool? = nil, dispDelegue: Bool? = nil) {
         self.id = id
         self.nom = nom
         self.email = email
@@ -24,6 +27,8 @@ final class User: Model, Content, @unchecked Sendable {
         self.role = role
         self.zitadelSub = zitadelSub
         self.prenom = prenom
+        self.dispAssesseur = dispAssesseur
+        self.dispDelegue = dispDelegue
     }
 }
 

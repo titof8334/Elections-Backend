@@ -1,4 +1,6 @@
 import Fluent
+import FluentKit
+import FluentSQL
 import Vapor
 
 struct CreateUser: AsyncMigration {
@@ -116,3 +118,35 @@ struct SeedAdminUser: AsyncMigration {
         try await User.query(on: database).filter(\.$email == "christ.arnal@laposte.net").delete()
     }
 }
+struct AddDispFieldsToUser: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        if database is SQLDatabase {
+            // Use raw SQL for SQLite to avoid Fluent schema builder issues
+            let sqlDatabase = database as! SQLDatabase
+            try await sqlDatabase.raw("ALTER TABLE users ADD COLUMN disp_bureau_id TEXT").run()
+            try await sqlDatabase.raw("ALTER TABLE users ADD COLUMN disp_assesseur INTEGER").run()
+            try await sqlDatabase.raw("ALTER TABLE users ADD COLUMN disp_delegue INTEGER").run()
+        } else {
+            // Fallback for other databases
+            try await database.schema("users")
+                .field("disp_bureau_id", .uuid)
+                .field("disp_assesseur", .bool)
+                .field("disp_delegue", .bool)
+                .update()
+        }
+    }
+
+    func revert(on database: Database) async throws {
+        if database is SQLDatabase {
+            // SQLite doesn't support DROP COLUMN directly, would need table recreation
+            // For now, just leave the columns (they're nullable)
+        } else {
+            try await database.schema("users")
+                .deleteField("disp_delegue")
+                .deleteField("disp_assesseur")
+                .deleteField("disp_bureau_id")
+                .update()
+        }
+    }
+}
+

@@ -70,7 +70,17 @@ struct AdminController: RouteCollection {
         let users = try await User.query(on: req.db).with(\.$bureaux).all()
         return users.compactMap { u in
             guard let id = u.id else { return nil }
-            return UserDTO(id: id, nom: u.nom, email: u.email, role: u.role, bureaux: u.bureaux.compactMap { $0.id })
+            return UserDTO(
+                id: id,
+                nom: u.nom,
+                email: u.email,
+                role: u.role,
+                bureaux: u.bureaux.compactMap { $0.id },
+                prenom: u.prenom,
+                dispBureauId: u.$dispBureau.id,
+                dispAssesseur: u.dispAssesseur,
+                dispDelegue: u.dispDelegue
+            )
         }
     }
 
