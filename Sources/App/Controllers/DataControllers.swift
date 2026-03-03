@@ -27,6 +27,13 @@ struct ParticipationController: RouteCollection {
     func updateUser(req: Request) async throws -> UserDTO {
         guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
         guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
+        let updateReq = try req.content.decode(UserDTO.self)
+        user.nom = updateReq.nom
+        user.prenom=updateReq.prenom
+        user.dispDelegue=updateReq.dispDelegue
+        user.dispAssesseur=updateReq.dispAssesseur
+        user.$dispBureau.id=updateReq.dispBureauId
+        try await user.save(on: req.db)
         return UserDTO(
             id: user.id!,
             nom: user.nom,
@@ -38,6 +45,19 @@ struct ParticipationController: RouteCollection {
             dispAssesseur: user.dispAssesseur,
             dispDelegue: user.dispDelegue
         )
+    }
+    func updateCandidat(req: Request) async throws -> CandidatDTO {
+        guard let id = req.parameters.get("candidatId", as: UUID.self) else { throw Abort(.badRequest) }
+        guard let candidat = try await Candidat.find(id, on: req.db) else { throw Abort(.notFound) }
+        let updateReq = try req.content.decode(CreateCandidatRequest.self)
+        candidat.nom = updateReq.nom
+        candidat.prenom = updateReq.prenom
+        candidat.liste = updateReq.liste
+        candidat.couleur = updateReq.couleur
+        candidat.ordre = updateReq.ordre
+        try await candidat.save(on: req.db)
+        return CandidatDTO(id: candidat.id, nom: candidat.nom, prenom: candidat.prenom,
+                          liste: candidat.liste, couleur: candidat.couleur, ordre: candidat.ordre)
     }
 
     func upsertParticipation(req: Request) async throws -> ParticipationDTO {
