@@ -33,6 +33,9 @@ struct BureauController: RouteCollection {
 
         let updateReq = try req.content.decode(UpdateBureauRequest.self)
 
+        if let numero = updateReq.numero { bureau.numero = numero }
+        if let nom = updateReq.nom { bureau.nom = nom }
+        if let adresse = updateReq.adresse { bureau.adresse = adresse }
         if let inscrits = updateReq.inscrits { bureau.inscrits = inscrits }
         if let bulletinsDepouilles = updateReq.bulletinsDepouilles { bureau.bulletinsDepouilles = bulletinsDepouilles }
         if let bulletinsNuls = updateReq.bulletinsNuls { bureau.bulletinsNuls = bulletinsNuls }

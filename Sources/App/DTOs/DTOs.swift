@@ -50,6 +50,9 @@ struct CreateBureauRequest: Content {
 
 struct UpdateBureauRequest: Content {
     let inscrits: Int?
+    let numero: Int?
+    let nom: String?
+    let adresse: String?
     let bulletinsDepouilles: Int?
     let bulletinsNuls: Int?
     let bulletinsBlancs: Int?
