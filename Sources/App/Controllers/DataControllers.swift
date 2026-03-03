@@ -5,7 +5,7 @@ struct ParticipationController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         routes.post("bureaux", ":bureauId", "participations", use: upsertParticipation)
         routes.get("user", ":userId", use: getUser)
-        routes.put("user", ":userId", use: updateUser)
+        routes.post("user", ":userId", use: updateUser)
 
     }
 
