@@ -4,6 +4,40 @@ import Fluent
 struct ParticipationController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         routes.post("bureaux", ":bureauId", "participations", use: upsertParticipation)
+        routes.get("user", ":userId", use: getUser)
+        routes.put("user", ":userId", use: updateUser)
+
+    }
+
+    func getUser(req: Request) async throws -> UserDTO {
+        guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
+        guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
+        return UserDTO(
+            id: user.id!,
+            nom: user.nom,
+            email: user.email,
+            role: user.role,
+            bureaux: [],
+            prenom: user.prenom,
+            dispBureauId: user.$dispBureau.id,
+            dispAssesseur: user.dispAssesseur,
+            dispDelegue: user.dispDelegue
+        )
+    }
+    func updateUser(req: Request) async throws -> UserDTO {
+        guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
+        guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
+        return UserDTO(
+            id: user.id!,
+            nom: user.nom,
+            email: user.email,
+            role: user.role,
+            bureaux: [],
+            prenom: user.prenom,
+            dispBureauId: user.$dispBureau.id,
+            dispAssesseur: user.dispAssesseur,
+            dispDelegue: user.dispDelegue
+        )
     }
 
     func upsertParticipation(req: Request) async throws -> ParticipationDTO {

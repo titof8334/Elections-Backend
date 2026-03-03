@@ -11,7 +11,6 @@ struct AdminController: RouteCollection {
         admin.delete("bureaux", ":bureauId", "scrutateurs", ":userId", use: removeScrutateur)
 
         // Users management
-        admin.get("users", ":userId", use: getUser)
         admin.get("users", use: getUsers)
         admin.post("users", use: createUser)
         admin.delete("users", ":userId", use: deleteUser)
@@ -64,22 +63,6 @@ struct AdminController: RouteCollection {
         }
         try await bureau.$scrutateurs.detach(user, on: req.db)
         return .ok
-    }
-
-    func getUser(req: Request) async throws -> UserDTO {
-        guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
-        guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
-        return UserDTO(
-            id: user.id!,
-            nom: user.nom,
-            email: user.email,
-            role: user.role,
-            bureaux: [],
-            prenom: user.prenom,
-            dispBureauId: user.$dispBureau.id,
-            dispAssesseur: user.dispAssesseur,
-            dispDelegue: user.dispDelegue
-        )
     }
 
     // MARK: Users
