@@ -17,6 +17,7 @@ struct MeResponse: Content {
     let nom: String
     let prenom: String?
     let id: UUID
+    let isAdmin: Bool
 }
 
 struct UserDTO: Content {

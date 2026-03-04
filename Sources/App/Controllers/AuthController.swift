@@ -190,7 +190,8 @@ struct AuthController: RouteCollection {
             bureaux: bureauIds,
             nom: user.nom,
             prenom: user.prenom,
-            id: user.id ?? UUID()
+            id: user.id ?? UUID(),
+            isAdmin: user.isAdmin
         )
     }
 }
