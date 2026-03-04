@@ -13,6 +13,7 @@ struct AdminController: RouteCollection {
         // Users management
         admin.get("users", use: getUsers)
         admin.post("users", use: createUser)
+        admin.put("users", ":userId", use: updateUser)
         admin.delete("users", ":userId", use: deleteUser)
 
         // Candidats management
@@ -75,6 +76,7 @@ struct AdminController: RouteCollection {
                 nom: u.nom,
                 email: u.email,
                 role: u.role,
+                isAdmin: u.isAdmin,
                 bureaux: u.bureaux.compactMap { $0.id },
                 prenom: u.prenom,
                 dispBureauId: u.$dispBureau.id,
@@ -87,6 +89,17 @@ struct AdminController: RouteCollection {
     func createUser(req: Request) async throws -> UserDTO {
         let authController = AuthController()
         return try await authController.register(req: req)
+    }
+
+    func updateUser(req: Request) async throws -> HTTPStatus {
+        guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
+        guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
+        let updateReq = try req.content.decode(UserDTO.self)
+        user.role = updateReq.role
+        
+//        user.bureaux = updateReq.bureaux
+        try await user.save(on: req.db)
+        return .noContent
     }
 
     func deleteUser(req: Request) async throws -> HTTPStatus {

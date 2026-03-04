@@ -24,6 +24,7 @@ struct UserDTO: Content {
     let nom: String
     let email: String
     let role: String
+    let isAdmin: Bool
     let bureaux: [UUID]
     let prenom: String?
     let dispBureauId: UUID?

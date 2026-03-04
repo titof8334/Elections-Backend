@@ -34,6 +34,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateCandidat())
     app.migrations.add(SeedAdminUser())
     app.migrations.add(AddDispFieldsToUser())
+    app.migrations.add(AddIsAdminFieldToUser())
     try app.autoMigrate().wait()
 
     // Routes

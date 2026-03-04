@@ -29,7 +29,8 @@ struct AuthController: RouteCollection {
             userId: user.id!,
             email: user.email,
             role: user.role,
-            nom: user.nom
+            nom: user.nom,
+            isAdmin: user.isAdmin
         )
 
         let token = try req.jwt.sign(payload)
@@ -42,6 +43,7 @@ struct AuthController: RouteCollection {
                 nom: user.nom,
                 email: user.email,
                 role: user.role,
+                isAdmin: user.isAdmin,
                 bureaux: bureauIds,
                 prenom: user.prenom,
                 dispBureauId: user.$dispBureau.id,
@@ -95,6 +97,7 @@ struct AuthController: RouteCollection {
             nom: user.nom,
             email: user.email,
             role: user.role,
+            isAdmin: user.isAdmin,
             bureaux: createReq.bureauIds ?? [],
             prenom: user.prenom,
             dispBureauId: user.$dispBureau.id,

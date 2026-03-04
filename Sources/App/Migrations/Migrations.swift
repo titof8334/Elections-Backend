@@ -150,3 +150,28 @@ struct AddDispFieldsToUser: AsyncMigration {
     }
 }
 
+struct AddIsAdminFieldToUser: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        try await database.schema("users")
+            .field("is_admin", .bool, .required, .sql(.default(false)))
+            .update()
+        let user = try await User.query(on: database).filter(\.$email == "christ.arnal@laposte.net").first()
+        if let user = user {
+            user.isAdmin = true
+            user.role = "aucun"
+            try await user.save(on: database)
+        }
+    }
+
+    func revert(on database: Database) async throws {
+        if database is SQLDatabase {
+            // SQLite doesn't support DROP COLUMN directly, would need table recreation
+            // For now, just leave the columns (they're nullable)
+        } else {
+            try await database.schema("users")
+                .deleteField("is_admin")
+                .update()
+        }
+    }
+}
+

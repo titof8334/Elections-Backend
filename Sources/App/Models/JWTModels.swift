@@ -9,6 +9,7 @@ struct UserPayload: JWTPayload, Authenticatable {
     var email: String
     var role: String
     var nom: String
+    var isAdmin: Bool
 
     func verify(using signer: JWTSigner) throws {
         try self.exp.verifyNotExpired()
@@ -36,7 +37,7 @@ struct JWTMiddleware: AsyncMiddleware {
 struct AdminMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
         let payload = try request.auth.require(UserPayload.self)
-        guard payload.role == "admin" else {
+        guard payload.isAdmin == true else {
             throw Abort(.forbidden, reason: "Accès administrateur requis")
         }
         return try await next.respond(to: request)
@@ -67,7 +68,8 @@ struct ZitadelAuthMiddleware: AsyncMiddleware {
             userId: user.id!,
             email: user.email,
             role: user.role,
-            nom: user.nom
+            nom: user.nom,
+            isAdmin: user.isAdmin
         )
         
         request.auth.login(userPayload)

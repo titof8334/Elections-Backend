@@ -8,10 +8,11 @@ final class User: Model, Content, @unchecked Sendable {
     @Field(key: "nom") var nom: String
     @Field(key: "email") var email: String
     @Field(key: "password_hash") var passwordHash: String
-    @Field(key: "role") var role: String // "admin" | "scrutateur"
+    @Field(key: "role") var role: String // "aucun" | "assesseur" | "delegue
+    @Field(key: "is_admin") var isAdmin: Bool
     @OptionalField(key: "zitadel_sub") var zitadelSub: String? // Zitadel User ID
     @OptionalField(key: "prenom") var prenom: String?
-    @OptionalParent(key: "disp_bureau_id") var dispBureau: Bureau? // Bureau de disposition
+    @OptionalParent(key: "disp_bureau_id") var dispBureau: Bureau? // Bureau d'affectation
     @OptionalField(key: "disp_assesseur") var dispAssesseur: Bool? // Disposition assesseur
     @OptionalField(key: "disp_delegue") var dispDelegue: Bool? // Disposition délégué
     @Siblings(through: UserBureau.self, from: \.$user, to: \.$bureau) var bureaux: [Bureau]
@@ -19,12 +20,13 @@ final class User: Model, Content, @unchecked Sendable {
 
     init() {}
 
-    init(id: UUID? = nil, nom: String, email: String, passwordHash: String, role: String = "scrutateur", zitadelSub: String? = nil, prenom: String? = nil, dispAssesseur: Bool? = nil, dispDelegue: Bool? = nil) {
+    init(id: UUID? = nil, nom: String, email: String, passwordHash: String, isAdmin: Bool = false, role: String = "aucun", zitadelSub: String? = nil, prenom: String? = nil, dispAssesseur: Bool? = nil, dispDelegue: Bool? = nil) {
         self.id = id
         self.nom = nom
         self.email = email
         self.passwordHash = passwordHash
         self.role = role
+        self.isAdmin = isAdmin
         self.zitadelSub = zitadelSub
         self.prenom = prenom
         self.dispAssesseur = dispAssesseur
