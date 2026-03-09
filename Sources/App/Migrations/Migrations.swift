@@ -152,43 +152,47 @@ struct AddDispFieldsToUser: AsyncMigration {
 
 struct AddElection: AsyncMigration {
     func prepare(on database: Database) async throws {
-        try await database.schema("elections")
-            .id()
-            .field("nom", .string, .required)
-            .field("created_at", .datetime)
-            .field("updated_at", .datetime)
-            .create()
-        let cuers = Election(nom: "Municipales Cuers 2026")
-        try await cuers.save(on: database)
-        try await database.schema("user_election")
-            .id()
-            .field("user_id", .uuid, .required, .references("users", "id", onDelete: .cascade))
-            .field("election_id", .uuid, .required, .references("elections", "id", onDelete: .cascade))
-            .create()
-        let users = try await User.query(on: database).all()
-        for user in users {
-            try await cuers.$users.attach(user, on: database)
-        }
-        // Add election_id to candidats and bureaux using raw SQL
-        if database is SQLDatabase {
-            let sqlDatabase = database as! SQLDatabase
-            let electionId = try cuers.requireID().uuidString
-            
-            // Add column as nullable first
-            try await sqlDatabase.raw("ALTER TABLE candidats ADD COLUMN election_id TEXT").run()
-            try await sqlDatabase.raw("ALTER TABLE bureaux ADD COLUMN election_id TEXT").run()
-            
-            // Update existing rows with the default election ID
-            try await sqlDatabase.raw("UPDATE candidats SET election_id = '\(raw: electionId)'").run()
-            try await sqlDatabase.raw("UPDATE bureaux SET election_id = '\(raw: electionId)'").run()
+//        try await database.schema("elections")
+//            .id()
+//            .field("nom", .string, .required)
+//            .field("created_at", .datetime)
+//            .field("updated_at", .datetime)
+//            .create()
+//        let cuers = Election(nom: "Municipales Cuers 2026")
+//        try await cuers.save(on: database)
+        if let cuers = try await Election.query(on: database).filter(\.$nom == "Municipales Cuers 2026").first() {
+            try await database.schema("user_election")
+                .id()
+                .field("user_id", .uuid, .required, .references("users", "id", onDelete: .cascade))
+                .field("election_id", .uuid, .required, .references("elections", "id", onDelete: .cascade))
+                .create()
+            let users = try await User.query(on: database).all()
+            for user in users {
+                try await cuers.$users.attach(user, on: database)
+            }
+            // Add election_id to candidats and bureaux using raw SQL
+            if database is SQLDatabase {
+                let sqlDatabase = database as! SQLDatabase
+                let electionId = try cuers.requireID().uuidString
+                
+                // Add column as nullable first
+                try await sqlDatabase.raw("ALTER TABLE candidats ADD COLUMN election_id TEXT").run()
+                try await sqlDatabase.raw("ALTER TABLE bureaux ADD COLUMN election_id TEXT").run()
+                
+                // Update existing rows with the default election ID
+                try await sqlDatabase.raw("UPDATE candidats SET election_id = '\(raw: electionId)'").run()
+                try await sqlDatabase.raw("UPDATE bureaux SET election_id = '\(raw: electionId)'").run()
+            } else {
+                // Fallback for other databases
+                try await database.schema("candidats")
+                    .field("election_id", .uuid)
+                    .update()
+                try await database.schema("bureaux")
+                    .field("election_id", .uuid)
+                    .update()
+            }
         } else {
-            // Fallback for other databases
-            try await database.schema("candidats")
-                .field("election_id", .uuid)
-                .update()
-            try await database.schema("bureaux")
-                .field("election_id", .uuid)
-                .update()
+            print("Cuers n'existe pas")
         }
     }
 
