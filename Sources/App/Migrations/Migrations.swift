@@ -192,7 +192,7 @@ struct AddElection: AsyncMigration {
                 try await database.schema("user_bureau")
                     .field("periode", .string)
                     .update()
-            }*/
+            }
             let users = try await User.query(on: database).all()
             for user in users {
                 try await cuers.$users.attach(user, on: database)
