@@ -166,7 +166,7 @@ struct AddElection: AsyncMigration {
 //                .field("user_id", .uuid, .required, .references("users", "id", onDelete: .cascade))
 //                .field("election_id", .uuid, .required, .references("elections", "id", onDelete: .cascade))
 //                .create()
-            if database is SQLDatabase {
+/*            if database is SQLDatabase {
                 let sqlDatabase = database as! SQLDatabase
                 
                 // Add columns to user_election table
@@ -192,7 +192,7 @@ struct AddElection: AsyncMigration {
                 try await database.schema("user_bureau")
                     .field("periode", .string)
                     .update()
-            }
+            }*/
             let users = try await User.query(on: database).all()
             for user in users {
                 try await cuers.$users.attach(user, on: database)
