@@ -14,7 +14,6 @@ struct AuthController: RouteCollection {
 
         guard let user = try await User.query(on: req.db)
             .filter(\.$email == loginReq.email)
-            .with(\.$bureaux)
             .first() else {
             throw Abort(.unauthorized, reason: "Email ou mot de passe incorrect")
         }
@@ -23,32 +22,39 @@ struct AuthController: RouteCollection {
             throw Abort(.unauthorized, reason: "Email ou mot de passe incorrect")
         }
 
+        let userBureaux = try await UserBureau.query(on: req.db)
+            .filter(\.$user.$id == user.id!)
+            .all()
+        let userElections = try await UserElection.query(on: req.db)
+            .filter(\.$user.$id == user.id!)
+            .all()
         let payload = UserPayload(
             sub: .init(value: user.id!.uuidString),
             exp: .init(value: Date().addingTimeInterval(60 * 60 * 12)), // 12h
             userId: user.id!,
             email: user.email,
-            role: user.role,
             nom: user.nom,
             isAdmin: user.isAdmin
         )
 
         let token = try req.jwt.sign(payload)
-        let bureauIds = user.bureaux.compactMap { $0.id }
+        let elections = userElections.compactMap {
+            MeUserElection(electionId: $0.$election.id, isOwner: $0.isOwner, role: $0.role, dispBureauId: $0.$dispBureau.id, dispDelegue: $0.dispDelegue, dispAssesseur: $0.dispAssesseur, periode: $0.periode)
+        }
+        let bureaux = userBureaux.compactMap {
+            MeUserBureau(electionId: $0.$election.id, bureauId: $0.$bureau.id, periode: $0.periode)
+        }
 
         return LoginResponse(
             token: token,
-            user: UserDTO(
+            user: MeResponse(
                 id: user.id!,
                 nom: user.nom,
-                email: user.email,
-                role: user.role,
-                isAdmin: user.isAdmin,
-                bureaux: bureauIds,
                 prenom: user.prenom,
-                dispBureauId: user.$dispBureau.id,
-                dispAssesseur: user.dispAssesseur,
-                dispDelegue: user.dispDelegue
+                email: user.email,
+                isAdmin: user.isAdmin,
+                bureaux: bureaux,
+                elections: elections
             )
         )
     }
@@ -64,45 +70,23 @@ struct AuthController: RouteCollection {
             throw Abort(.conflict, reason: "Cet email est déjà utilisé")
         }
 
-        let hash = try Bcrypt.hash(createReq.password)
+        let hash = try Bcrypt.hash(createReq.password ?? "")
         let user = User(
             nom: createReq.nom,
             email: createReq.email,
             passwordHash: hash,
-            role: createReq.role ?? "scrutateur",
             zitadelSub: nil,
             prenom: createReq.prenom,
-            dispAssesseur: createReq.dispAssesseur ?? false,
-            dispDelegue: createReq.dispDelegue ?? false
         )
         
-        // Set dispBureau if provided
-        if let dispBureauId = createReq.dispBureauId {
-            user.$dispBureau.id = dispBureauId
-        }
-        
         try await user.save(on: req.db)
-
-        // Associate bureaux if provided
-        if let bureauIds = createReq.bureauIds {
-            for bureauId in bureauIds {
-                if let bureau = try await Bureau.find(bureauId, on: req.db) {
-                    try await user.$bureaux.attach(bureau, on: req.db)
-                }
-            }
-        }
 
         return UserDTO(
             id: user.id!,
             nom: user.nom,
-            email: user.email,
-            role: user.role,
-            isAdmin: user.isAdmin,
-            bureaux: createReq.bureauIds ?? [],
             prenom: user.prenom,
-            dispBureauId: user.$dispBureau.id,
-            dispAssesseur: user.dispAssesseur,
-            dispDelegue: user.dispDelegue
+            email: user.email,
+            isAdmin: user.isAdmin
         )
     }
         
@@ -122,7 +106,6 @@ struct AuthController: RouteCollection {
         // Step 1: Try to find user by zitadelSub
         if let existingUser = try await User.query(on: req.db)
             .filter(\.$zitadelSub == zitadelPayload.sub.value)
-            .with(\.$bureaux)
             .first() {
             user = existingUser
             req.logger.info("User found by zitadelSub: \(user.email)")
@@ -138,7 +121,6 @@ struct AuthController: RouteCollection {
             if let email = userInfo.email,
                let existingUserByEmail = try await User.query(on: req.db)
                 .filter(\.$email == email)
-                .with(\.$bureaux)
                 .first() {
                 // Link existing user to Zitadel
                 req.logger.info("Found existing user by email, linking to Zitadel sub")
@@ -163,7 +145,6 @@ struct AuthController: RouteCollection {
                     nom: userInfo.family_name ?? "Utilisateur",
                     email: userInfo.email ?? "user-\(zitadelPayload.sub.value)@zitadel.local",
                     passwordHash: "",  // No password for Zitadel users
-                    role: "scrutateur",  // Default role
                     zitadelSub: zitadelPayload.sub.value,
                     prenom: userInfo.given_name
                 )
@@ -173,7 +154,6 @@ struct AuthController: RouteCollection {
                 // Reload with relations
                 guard let savedUser = try await User.query(on: req.db)
                     .filter(\.$zitadelSub == zitadelPayload.sub.value)
-                    .with(\.$bureaux)
                     .first() else {
                     throw Abort(.internalServerError, reason: "Failed to create user")
                 }
@@ -183,15 +163,44 @@ struct AuthController: RouteCollection {
             }
         }
         
-        let bureauIds = user.bureaux.compactMap { $0.id }
+        // Load UserBureau pivots
+        let userBureaux = try await UserBureau.query(on: req.db)
+            .filter(\.$user.$id == user.requireID())
+            .with(\.$bureau)
+            .all()
+        
+        let bureaux = userBureaux.compactMap { ub -> MeUserBureau? in
+            guard let bureauId = ub.bureau.id else { return nil }
+            return MeUserBureau(electionId: ub.$election.id, bureauId: bureauId, periode: ub.periode)
+        }
+        
+        // Load UserElection pivots
+        let userElections = try await UserElection.query(on: req.db)
+            .filter(\.$user.$id == user.requireID())
+            .with(\.$election)
+            .all()
+        
+        let elections = userElections.compactMap { ue -> MeUserElection? in
+            guard let electionId = ue.election.id else { return nil }
+            return MeUserElection(
+                electionId: electionId,
+                isOwner: ue.isOwner,
+                role: ue.role,
+                dispBureauId: ue.$dispBureau.id,
+                dispDelegue: ue.dispDelegue,
+                dispAssesseur: ue.dispAssesseur,
+                periode: ue.periode
+            )
+        }
         
         return MeResponse(
-            role: user.role,
-            bureaux: bureauIds,
+            id: user.id ?? UUID(),
             nom: user.nom,
             prenom: user.prenom,
-            id: user.id ?? UUID(),
-            isAdmin: user.isAdmin
+            email: user.email,
+            isAdmin: user.isAdmin,
+            bureaux: bureaux,
+            elections: elections,
         )
     }
 }

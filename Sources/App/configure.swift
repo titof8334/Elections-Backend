@@ -34,8 +34,12 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateCandidat())
     app.migrations.add(SeedAdminUser())
     app.migrations.add(AddDispFieldsToUser())
-    app.migrations.add(AddIsAdminFieldToUser())
-    try app.autoMigrate().wait()
+    app.migrations.add(AddElection())
+    app.migrations.add(AddElectionUsers())
+    app.migrations.add(AddElectionLinks())
+    app.migrations.add(AddElectionUserBureau())
+    // app.migrations.add(MakeElectionIdRequired()) // Décommentez quand vous voulez rendre election_id obligatoire
+    try await app.autoMigrate().get()
 
     // Routes
     try routes(app)

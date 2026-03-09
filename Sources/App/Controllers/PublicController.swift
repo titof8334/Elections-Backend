@@ -3,20 +3,28 @@ import Fluent
 
 struct PublicController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        routes.get("synthese", use: getSynthese)
-        routes.get("bureaux", use: getBureaux)
-        routes.get("bureaux", ":bureauId", use: getBureau)
-        routes.get("candidats", use: getCandidats)
+        routes.get("elections", ":electionId" ,"synthese", use: getSynthese)
+        routes.get("elections", use: getElections)
+        routes.get("elections", ":electionId", use: getElection)
+        routes.get("elections", ":electionId", "bureaux", use: getBureaux)
+        routes.get("elections", ":electionId", "bureaux", ":bureauId", "synthese", use: getSyntheseBureau)
+        routes.get("elections", ":electionId", "candidats", use: getCandidats)
     }
 
     func getSynthese(req: Request) async throws -> SyntheseGlobale {
+        guard let electionId = req.parameters.get("electionId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
         let bureaux = try await Bureau.query(on: req.db)
+            .filter(\.$election.$id == electionId)
             .with(\.$participations)
             .with(\.$resultats)
             .sort(\.$numero)
             .all()
 
-        let candidats = try await Candidat.query(on: req.db).sort(\.$ordre).all()
+        let candidats = try await Candidat.query(on: req.db)
+            .filter(\.$election.$id == electionId)
+            .sort(\.$ordre).all()
 
         let totalInscrits = bureaux.reduce(0) { $0 + $1.inscrits }
 
@@ -86,8 +94,45 @@ struct PublicController: RouteCollection {
         )
     }
 
+    func getElections(req: Request) async throws -> [ElectionDTO] {
+        let elections = try await Election.query(on: req.db)
+            .all()
+        if let payload = req.auth.get(UserPayload.self) {
+            let userElections = try await UserElection.query(on: req.db)
+                .filter(\.$user.$id == payload.userId)
+                .all()
+            return try elections.map { e in
+                let ue = userElections.first(where: { $0.$election.id == e.id})
+                return try toElectionDTO(e,userElection: ue)
+            }
+        } else {
+            return try elections.map { try toElectionDTO($0) }
+        }
+    }
+    
+    func getElection(req: Request) async throws -> ElectionDTO {
+        guard let electionId = req.parameters.get("electionId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+        guard let election = try await Election.find(electionId, on: req.db) else {
+            throw Abort(.notFound)
+        }
+        var userElection: UserElection? = nil
+        if let payload = req.auth.get(UserPayload.self) {
+            userElection = try await UserElection.query(on: req.db)
+                .filter(\.$election.$id == electionId)
+                .filter(\.$user.$id == payload.userId)
+                .first()
+        }
+        return try toElectionDTO(election,userElection: userElection)
+    }
+
     func getBureaux(req: Request) async throws -> [BureauDTO] {
+        guard let electionId = req.parameters.get("electionId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
         let bureaux = try await Bureau.query(on: req.db)
+            .filter(\.$election.$id == electionId)
             .with(\.$participations)
             .with(\.$resultats)
             .sort(\.$numero)
@@ -96,7 +141,7 @@ struct PublicController: RouteCollection {
         return try bureaux.map { try toBureauDTO($0) }
     }
 
-    func getBureau(req: Request) async throws -> BureauDTO {
+    func getSyntheseBureau(req: Request) async throws -> BureauDTO {
         guard let id = req.parameters.get("bureauId", as: UUID.self) else {
             throw Abort(.badRequest)
         }
@@ -111,7 +156,10 @@ struct PublicController: RouteCollection {
     }
 
     func getCandidats(req: Request) async throws -> [CandidatDTO] {
-        let candidats = try await Candidat.query(on: req.db).sort(\.$ordre).all()
+        guard let electionId = req.parameters.get("electionId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+        let candidats = try await Candidat.query(on: req.db).filter(\.$election.$id == electionId).sort(\.$ordre).all()
         return candidats.map { c in
             CandidatDTO(id: c.id, nom: c.nom, prenom: c.prenom, liste: c.liste, couleur: c.couleur, ordre: c.ordre)
         }
@@ -141,7 +189,27 @@ struct PublicController: RouteCollection {
             bulletinsBlancs: bureau.bulletinsBlancs,
             depouillementTermine: bureau.depouillementTermine,
             participations: participations,
-            resultats: resultats
+            resultats: resultats,
+            users: nil
+        )
+    }
+    
+    private func toElectionDTO(_ election: Election, userElection: UserElection? = nil) throws -> ElectionDTO {
+        if let ue = userElection {
+            return ElectionDTO(
+                id: election.id,
+                nom: election.nom,
+                isOwner: ue.isOwner,
+                isDelegue: ue.role == "delegue",
+                isSubscriber : true
+            )
+        }
+        return ElectionDTO(
+            id: election.id,
+            nom: election.nom,
+            isOwner: false,
+            isDelegue: false,
+            isSubscriber : false
         )
     }
 }

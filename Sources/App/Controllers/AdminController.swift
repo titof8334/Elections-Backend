@@ -2,86 +2,45 @@ import Vapor
 
 struct AdminController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        let admin = routes.grouped(AdminMiddleware())
+        let admin = routes.grouped("admin").grouped(AdminMiddleware())
 
-        // Bureaux management
-        admin.post("bureaux", use: createBureau)
-        admin.delete("bureaux", ":bureauId", use: deleteBureau)
-        admin.post("bureaux", ":bureauId", "scrutateurs", ":userId", use: assignScrutateur)
-        admin.delete("bureaux", ":bureauId", "scrutateurs", ":userId", use: removeScrutateur)
+        // Election management
+        admin.post("elections", use: createElection)
+        admin.post("elections", ":electionId", "owner", ":ownerId", use: createOwner)
 
         // Users management
         admin.get("users", use: getUsers)
-        admin.post("users", use: createUser)
         admin.put("users", ":userId", use: updateUser)
         admin.delete("users", ":userId", use: deleteUser)
-
-        // Candidats management
-        admin.post("candidats", use: createCandidat)
-        admin.put("candidats", ":candidatId", use: updateCandidat)
-        admin.delete("candidats", ":candidatId", use: deleteCandidat)
-
-        // Reset
-        admin.delete("reset", use: resetElection)
+        
     }
 
-    // MARK: Bureaux
-    func createBureau(req: Request) async throws -> Bureau {
-        let createReq = try req.content.decode(CreateBureauRequest.self)
-        let bureau = Bureau(numero: createReq.numero, nom: createReq.nom, adresse: createReq.adresse, inscrits: createReq.inscrits)
-        try await bureau.save(on: req.db)
-        return bureau
+    // MARK: Elections
+    func createElection(req: Request) async throws -> Election {
+        let createReq = try req.content.decode(CreateElectionRequest.self)
+        let election = Election(nom: createReq.nom)
+        try await election.save(on: req.db)
+        return election
     }
-
-    func deleteBureau(req: Request) async throws -> HTTPStatus {
-        guard let id = req.parameters.get("bureauId", as: UUID.self) else { throw Abort(.badRequest) }
-        guard let bureau = try await Bureau.find(id, on: req.db) else { throw Abort(.notFound) }
-        try await bureau.delete(on: req.db)
-        return .noContent
-    }
-
-    func assignScrutateur(req: Request) async throws -> HTTPStatus {
-        guard let bureauId = req.parameters.get("bureauId", as: UUID.self),
-              let userId = req.parameters.get("userId", as: UUID.self) else {
-            throw Abort(.badRequest)
-        }
-        guard let bureau = try await Bureau.find(bureauId, on: req.db),
-              let user = try await User.find(userId, on: req.db) else {
-            throw Abort(.notFound)
-        }
-        try await bureau.$scrutateurs.attach(user, on: req.db)
-        return .ok
-    }
-
-    func removeScrutateur(req: Request) async throws -> HTTPStatus {
-        guard let bureauId = req.parameters.get("bureauId", as: UUID.self),
-              let userId = req.parameters.get("userId", as: UUID.self) else {
-            throw Abort(.badRequest)
-        }
-        guard let bureau = try await Bureau.find(bureauId, on: req.db),
-              let user = try await User.find(userId, on: req.db) else {
-            throw Abort(.notFound)
-        }
-        try await bureau.$scrutateurs.detach(user, on: req.db)
-        return .ok
+    func createOwner(req: Request) async throws -> UserElection {
+        guard let electionId = req.parameters.get("electionId", as: UUID.self) else { throw Abort(.badRequest) }
+        guard let ownerId = req.parameters.get("ownerId", as: UUID.self) else { throw Abort(.badRequest) }
+        let relation = UserElection(userID: ownerId, electionID: electionId, isOwner: true)
+        try await relation.save(on: req.db)
+        return relation
     }
 
     // MARK: Users
     func getUsers(req: Request) async throws -> [UserDTO] {
-        let users = try await User.query(on: req.db).with(\.$bureaux).all()
+        let users = try await User.query(on: req.db).with(\.$elections).all()
         return users.compactMap { u in
             guard let id = u.id else { return nil }
             return UserDTO(
                 id: id,
                 nom: u.nom,
-                email: u.email,
-                role: u.role,
-                isAdmin: u.isAdmin,
-                bureaux: u.bureaux.compactMap { $0.id },
                 prenom: u.prenom,
-                dispBureauId: u.$dispBureau.id,
-                dispAssesseur: u.dispAssesseur,
-                dispDelegue: u.dispDelegue
+                email: u.email,
+                isAdmin: u.isAdmin
             )
         }
     }
@@ -95,9 +54,9 @@ struct AdminController: RouteCollection {
         guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
         guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
         let updateReq = try req.content.decode(UserDTO.self)
-        user.role = updateReq.role
-        
-//        user.bureaux = updateReq.bureaux
+        user.nom = updateReq.nom ?? user.nom
+        user.prenom = updateReq.prenom ?? user.prenom
+        user.isAdmin = updateReq.isAdmin ?? user.isAdmin
         try await user.save(on: req.db)
         return .noContent
     }
@@ -106,56 +65,20 @@ struct AdminController: RouteCollection {
         guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
         guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
         // Don't allow deleting admin account
-        guard user.email != "admin@elections.local" else {
+        guard user.email != "christ.arnal@laposte.net" else {
             throw Abort(.forbidden, reason: "Impossible de supprimer le compte admin principal")
         }
         try await user.delete(on: req.db)
         return .noContent
     }
+}
 
-    // MARK: Candidats
-    func createCandidat(req: Request) async throws -> CandidatDTO {
-        let createReq = try req.content.decode(CreateCandidatRequest.self)
-        let candidat = Candidat(nom: createReq.nom, prenom: createReq.prenom, liste: createReq.liste,
-                                couleur: createReq.couleur, ordre: createReq.ordre)
-        try await candidat.save(on: req.db)
-        return CandidatDTO(id: candidat.id, nom: candidat.nom, prenom: candidat.prenom,
-                          liste: candidat.liste, couleur: candidat.couleur, ordre: candidat.ordre)
-    }
-
-    func updateCandidat(req: Request) async throws -> CandidatDTO {
-        guard let id = req.parameters.get("candidatId", as: UUID.self) else { throw Abort(.badRequest) }
-        guard let candidat = try await Candidat.find(id, on: req.db) else { throw Abort(.notFound) }
-        let updateReq = try req.content.decode(CreateCandidatRequest.self)
-        candidat.nom = updateReq.nom
-        candidat.prenom = updateReq.prenom
-        candidat.liste = updateReq.liste
-        candidat.couleur = updateReq.couleur
-        candidat.ordre = updateReq.ordre
-        try await candidat.save(on: req.db)
-        return CandidatDTO(id: candidat.id, nom: candidat.nom, prenom: candidat.prenom,
-                          liste: candidat.liste, couleur: candidat.couleur, ordre: candidat.ordre)
-    }
-
-    func deleteCandidat(req: Request) async throws -> HTTPStatus {
-        guard let id = req.parameters.get("candidatId", as: UUID.self) else { throw Abort(.badRequest) }
-        guard let candidat = try await Candidat.find(id, on: req.db) else { throw Abort(.notFound) }
-        try await candidat.delete(on: req.db)
-        return .noContent
-    }
-
-    // MARK: Reset
-    func resetElection(req: Request) async throws -> HTTPStatus {
-        try await Resultat.query(on: req.db).delete()
-        try await Participation.query(on: req.db).delete()
-        let bureaux = try await Bureau.query(on: req.db).all()
-        for bureau in bureaux {
-            bureau.bulletinsDepouilles = 0
-            bureau.bulletinsNuls = 0
-            bureau.bulletinsBlancs = 0
-            bureau.depouillementTermine = false
-            try await bureau.save(on: req.db)
+struct AdminMiddleware: AsyncMiddleware {
+    func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
+        let payload = try request.auth.require(UserPayload.self)
+        guard payload.isAdmin == true else {
+            throw Abort(.forbidden, reason: "Accès administrateur requis")
         }
-        return .ok
+        return try await next.respond(to: request)
     }
 }

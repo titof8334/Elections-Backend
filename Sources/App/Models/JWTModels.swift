@@ -7,7 +7,6 @@ struct UserPayload: JWTPayload, Authenticatable {
     var exp: ExpirationClaim
     var userId: UUID
     var email: String
-    var role: String
     var nom: String
     var isAdmin: Bool
 
@@ -18,28 +17,11 @@ struct UserPayload: JWTPayload, Authenticatable {
 
 struct JWTMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
-        print("JWTMiddleware")
         guard let token = request.headers.bearerAuthorization?.token else {
             throw Abort(.unauthorized, reason: "Token manquant")
         }
-        print("Token présent")
-
         let payload = try request.jwt.verify(token, as: UserPayload.self)
-        print("Payload òk")
-        print(payload)
-
         request.auth.login(payload)
-        print("logged in")
-        return try await next.respond(to: request)
-    }
-}
-
-struct AdminMiddleware: AsyncMiddleware {
-    func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
-        let payload = try request.auth.require(UserPayload.self)
-        guard payload.isAdmin == true else {
-            throw Abort(.forbidden, reason: "Accès administrateur requis")
-        }
         return try await next.respond(to: request)
     }
 }
@@ -67,7 +49,6 @@ struct ZitadelAuthMiddleware: AsyncMiddleware {
             exp: zitadelPayload.exp,
             userId: user.id!,
             email: user.email,
-            role: user.role,
             nom: user.nom,
             isAdmin: user.isAdmin
         )
@@ -81,9 +62,46 @@ struct ZitadelAuthMiddleware: AsyncMiddleware {
 struct ZitadelAdminMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
         let payload = try request.auth.require(UserPayload.self)
-        guard payload.role == "admin" else {
+        guard payload.isAdmin == true else {
             throw Abort(.forbidden, reason: "Accès administrateur requis")
         }
+        return try await next.respond(to: request)
+    }
+}
+
+// Optional Zitadel Authentication Middleware (doesn't require auth, but extracts it if present)
+struct OptionalZitadelAuthMiddleware: AsyncMiddleware {
+    func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
+        // Check if Bearer token is present
+        if let token = request.headers.bearerAuthorization?.token {
+            do {
+                // Try to validate token with Zitadel
+                let zitadelPayload = try await request.zitadel.validateToken(token)
+                
+                // Find user in database
+                if let user = try await User.query(on: request.db)
+                    .filter(\.$zitadelSub == zitadelPayload.sub.value)
+                    .first() {
+                    
+                    // Create internal UserPayload for compatibility with existing code
+                    let userPayload = UserPayload(
+                        sub: .init(value: user.id!.uuidString),
+                        exp: zitadelPayload.exp,
+                        userId: user.id!,
+                        email: user.email,
+                        nom: user.nom,
+                        isAdmin: user.isAdmin
+                    )
+                    
+                    request.auth.login(userPayload)
+                }
+            } catch {
+                // Token invalid or expired - continue without auth
+                request.logger.debug("Optional auth failed: \(error)")
+            }
+        }
+        
+        // Continue to next middleware/route handler regardless
         return try await next.respond(to: request)
     }
 }

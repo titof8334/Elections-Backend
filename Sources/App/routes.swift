@@ -1,8 +1,8 @@
 import Vapor
 
 public func routes(_ app: Application) throws {
-    // Public routes
-    let publicAPI = app.grouped("api", "v1")
+    // Public routes with optional authentication
+    let publicAPI = app.grouped("api", "v1").grouped(OptionalZitadelAuthMiddleware())
     try publicAPI.register(collection: PublicController())
 
     // Auth routes (public - no authentication required)
@@ -11,8 +11,8 @@ public func routes(_ app: Application) throws {
 
     // Protected routes with Zitadel authentication
     let protected = publicAPI.grouped(ZitadelAuthMiddleware())
-    try protected.register(collection: BureauController())
-    try protected.register(collection: ParticipationController())
-    try protected.register(collection: ResultatController())
+    try protected.register(collection: AuthUserController())
+    try protected.register(collection: DelegueController())
+    try protected.register(collection: OwnerController())
     try protected.register(collection: AdminController())
 }

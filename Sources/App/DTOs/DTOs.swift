@@ -8,29 +8,105 @@ struct LoginRequest: Content {
 
 struct LoginResponse: Content {
     let token: String
-    let user: UserDTO
+    let user: MeResponse
+}
+
+struct MeProfile: Content {
+    let id: UUID
+    let nom: String
+    let prenom: String?
+    let email: String
+    let isAdmin: Bool
+    let elections: [MeProfileElection]
+}
+struct MeProfileElection: Content {
+    let id: UUID?
+    let electionId: UUID
+    let nom: String
+    let isOwner: Bool
+    let role: String
+    let dispBureauId: UUID?
+    let dispDelegue: Bool
+    let dispAssesseur: Bool
+    let periode: String?
+    let bureaux: [MeProfileElectionBureau]
+    let tousBureaux: [MeProfileBureau]
+}
+struct MeProfileElectionBureau: Content {
+    let id: UUID?
+    let bureauId: UUID
+    let periode: String?
+}
+struct MeProfileBureau: Content {
+    let id: UUID?
+    let numero: Int
+    let nom: String
 }
 
 struct MeResponse: Content {
-    let role: String
-    let bureaux: [UUID]
+    let id: UUID
     let nom: String
     let prenom: String?
-    let id: UUID
+    let email: String
     let isAdmin: Bool
+    let bureaux: [MeUserBureau]
+    let elections: [MeUserElection]
+}
+
+struct MeUserBureau: Content {
+    let electionId: UUID
+    let bureauId: UUID
+    let periode: String?
+}
+
+struct MeUserElection: Content {
+    let electionId: UUID
+    let isOwner: Bool
+    let role: String
+    let dispBureauId: UUID?
+    let dispDelegue: Bool
+    let dispAssesseur: Bool
+    let periode: String?
 }
 
 struct UserDTO: Content {
-    let id: UUID
-    let nom: String
-    let email: String
-    let role: String
-    let isAdmin: Bool
-    let bureaux: [UUID]
+    let id: UUID?
+    let nom: String?
     let prenom: String?
+    let email: String?
+    let isAdmin: Bool?
+}
+
+struct ElectionUserDTO: Content {
+    let id: UUID?
+    let nom: String?
+    let prenom: String?
+    let email: String
+    let isAdmin: Bool?
+    let isOwner: Bool?
+    let role: String?
+    let bureaux: [ElectionUserBureauDTO]?
     let dispBureauId: UUID?
     let dispAssesseur: Bool?
     let dispDelegue: Bool?
+    let periode: String?
+}
+
+struct ElectionUserBureauDTO: Content {
+    let id: UUID?
+    let periode: String?
+}
+// Election
+struct ElectionDTO: Content {
+    let id: UUID?
+    let nom: String
+    let isOwner: Bool?
+    let isDelegue: Bool?
+    let isSubscriber: Bool?
+}
+
+struct CreateElectionRequest: Content {
+    let nom: String
 }
 
 // Bureau
@@ -39,13 +115,25 @@ struct BureauDTO: Content {
     let numero: Int
     let nom: String
     let adresse: String
-    let inscrits: Int
-    let bulletinsDepouilles: Int
-    let bulletinsNuls: Int
-    let bulletinsBlancs: Int
-    let depouillementTermine: Bool
-    let participations: [ParticipationDTO]
-    let resultats: [ResultatDTO]
+    let inscrits: Int?
+    let bulletinsDepouilles: Int?
+    let bulletinsNuls: Int?
+    let bulletinsBlancs: Int?
+    let depouillementTermine: Bool?
+    let participations: [ParticipationDTO]?
+    let resultats: [ResultatDTO]?
+    let users: [UserBureauDTO]?
+}
+
+struct UserBureauDTO: Content {
+    let id: UUID?
+    let nom: String?
+    let prenom: String?
+    let role: String?
+    let periode: String?
+    let dispAssesseur: Bool?
+    let dispDelegue: Bool?
+    let dispPeriode: String?
 }
 
 struct CreateBureauRequest: Content {
@@ -158,24 +246,25 @@ struct ParticipationHeure: Content {
 // Create user
 struct CreateUserRequest: Content {
     let nom: String
-    let email: String
-    let password: String
-    let role: String?
-    let bureauIds: [UUID]?
     let prenom: String?
-    let dispBureauId: UUID?
-    let dispAssesseur: Bool?
-    let dispDelegue: Bool?
+    let email: String
+    let password: String?
 }
 // Update user
 struct UpdateUserRequest: Content {
     let nom: String?
     let email: String?
     let role: String?
-    let bureauIds: [UUID]?
     let prenom: String?
     let dispBureauId: UUID?
     let dispAssesseur: Bool?
     let dispDelegue: Bool?
 }
 
+struct UserElectionDTO: Content {
+    let id: UUID?
+    let dispBureauId: UUID?
+    let dispAssesseur: Bool?
+    let dispDelegue: Bool?
+    let periode: String?
+}

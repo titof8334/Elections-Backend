@@ -5,6 +5,7 @@ final class Bureau: Model, Content, @unchecked Sendable {
     static let schema = "bureaux"
 
     @ID(key: .id) var id: UUID?
+    @Parent(key: "election_id") var election: Election
     @Field(key: "numero") var numero: Int
     @Field(key: "nom") var nom: String
     @Field(key: "adresse") var adresse: String
@@ -21,8 +22,9 @@ final class Bureau: Model, Content, @unchecked Sendable {
 
     init() {}
 
-    init(id: UUID? = nil, numero: Int, nom: String, adresse: String, inscrits: Int = 0) {
+    init(id: UUID? = nil, electionId: UUID, numero: Int, nom: String, adresse: String, inscrits: Int = 0) {
         self.id = id
+        self.$election.id = electionId
         self.numero = numero
         self.nom = nom
         self.adresse = adresse
