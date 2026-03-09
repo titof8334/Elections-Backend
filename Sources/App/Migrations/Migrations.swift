@@ -166,6 +166,33 @@ struct AddElection: AsyncMigration {
 //                .field("user_id", .uuid, .required, .references("users", "id", onDelete: .cascade))
 //                .field("election_id", .uuid, .required, .references("elections", "id", onDelete: .cascade))
 //                .create()
+            if database is SQLDatabase {
+                let sqlDatabase = database as! SQLDatabase
+                
+                // Add columns to user_election table
+                try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0").run()
+                try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN disp_bureau_id TEXT").run()
+                try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN disp_assesseur INTEGER").run()
+                try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN disp_delegue INTEGER").run()
+                try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN periode TEXT").run()
+                
+                // Add columns to user_bureau table
+                try await sqlDatabase.raw("ALTER TABLE user_bureau ADD COLUMN role TEXT NOT NULL DEFAULT 'aucun'").run()
+                try await sqlDatabase.raw("ALTER TABLE user_bureau ADD COLUMN periode TEXT").run()
+            } else {
+                // Fallback for other databases
+                try await database.schema("user_election")
+                    .field("is_owner", .bool)
+                    .field("role", .string)
+                    .field("disp_bureau_id", .uuid)
+                    .field("disp_assesseur", .bool)
+                    .field("disp_delegue", .bool)
+                    .field("periode", .string)
+                    .update()
+                try await database.schema("user_bureau")
+                    .field("periode", .string)
+                    .update()
+            }
             let users = try await User.query(on: database).all()
             for user in users {
                 try await cuers.$users.attach(user, on: database)
@@ -204,33 +231,6 @@ struct AddElection: AsyncMigration {
 
 struct AddElectionUsers: AsyncMigration {
     func prepare(on database: Database) async throws {
-        if database is SQLDatabase {
-            let sqlDatabase = database as! SQLDatabase
-            
-            // Add columns to user_election table
-            try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0").run()
-            try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN disp_bureau_id TEXT").run()
-            try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN disp_assesseur INTEGER").run()
-            try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN disp_delegue INTEGER").run()
-            try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN periode TEXT").run()
-            
-            // Add columns to user_bureau table
-            try await sqlDatabase.raw("ALTER TABLE user_bureau ADD COLUMN role TEXT NOT NULL DEFAULT 'aucun'").run()
-            try await sqlDatabase.raw("ALTER TABLE user_bureau ADD COLUMN periode TEXT").run()
-        } else {
-            // Fallback for other databases
-            try await database.schema("user_election")
-                .field("is_owner", .bool)
-                .field("role", .string)
-                .field("disp_bureau_id", .uuid)
-                .field("disp_assesseur", .bool)
-                .field("disp_delegue", .bool)
-                .field("periode", .string)
-                .update()
-            try await database.schema("user_bureau")
-                .field("periode", .string)
-                .update()
-        }
                 
         // Migrate data from User to UserElection using SQL
         if database is SQLDatabase {
