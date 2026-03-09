@@ -177,21 +177,21 @@ struct AddElection: AsyncMigration {
 //                try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN periode TEXT").run()
                 
                 // Add columns to user_bureau table
-                try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN role TEXT NOT NULL DEFAULT 'aucun'").run()
-                try await sqlDatabase.raw("ALTER TABLE user_bureau ADD COLUMN periode TEXT").run()
+//                try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN role TEXT NOT NULL DEFAULT 'aucun'").run()
+//                try await sqlDatabase.raw("ALTER TABLE user_bureau ADD COLUMN periode TEXT").run()
             } else {
                 // Fallback for other databases
-                try await database.schema("user_election")
+//                try await database.schema("user_election")
 //                    .field("is_owner", .bool)
-                    .field("role", .string)
+//                    .field("role", .string)
 //                    .field("disp_bureau_id", .uuid)
 //                    .field("disp_assesseur", .bool)
 //                    .field("disp_delegue", .bool)
 //                    .field("periode", .string)
-                    .update()
-                try await database.schema("user_bureau")
-                    .field("periode", .string)
-                    .update()
+//                    .update()
+//                try await database.schema("user_bureau")
+//                    .field("periode", .string)
+//                    .update()
             }
             let users = try await User.query(on: database).all()
             for user in users {
