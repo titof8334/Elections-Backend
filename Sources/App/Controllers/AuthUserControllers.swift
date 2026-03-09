@@ -141,7 +141,7 @@ struct AuthUserController: RouteCollection {
             let mpbs = bureaux
                 .filter { $0.$election.id == ue.$election.id }
                 .map { MeProfileBureau(id: $0.id, numero: $0.numero, nom: $0.nom)}
-            return MeProfileElection(id: ue.id, electionId: ue.$election.id, nom: ue.election.nom, isOwner: ue.isOwner, role: ue.role, dispBureauId: ue.$dispBureau.id, dispDelegue: ue.dispDelegue, dispAssesseur: ue.dispAssesseur, periode: ue.periode, bureaux: mpebs, tousBureaux: mpbs)
+            return MeProfileElection(id: ue.id, electionId: ue.$election.id, nom: ue.election.nom, isOwner: ue.isOwner, role: ue.role, dispBureauId: ue.$dispBureau.id, dispDelegue: ue.dispDelegue ?? false, dispAssesseur: ue.dispAssesseur ?? false, periode: ue.periode, bureaux: mpebs, tousBureaux: mpbs)
         }
         return MeProfile(id: user.id!, nom: user.nom, prenom: user.prenom, email: user.email, isAdmin: user.isAdmin, elections: mpes)
     }

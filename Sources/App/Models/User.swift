@@ -55,9 +55,9 @@ final class UserElection: Model, Content, @unchecked Sendable {
     @Field(key: "is_owner") var isOwner: Bool
     @Field(key: "role") var role: String // "aucun" | "assesseur" | "delegue
     @OptionalParent(key: "disp_bureau_id") var dispBureau: Bureau? // Bureau d'affectation
-    @Field(key: "disp_assesseur") var dispAssesseur: Bool // Disposition assesseur
-    @Field(key: "disp_delegue") var dispDelegue: Bool // Disposition délégué
-    @Field(key: "periode") var periode: String // "J" | "M" | "AM"
+    @Field(key: "disp_assesseur") var dispAssesseur: Bool? // Disposition assesseur
+    @Field(key: "disp_delegue") var dispDelegue: Bool? // Disposition délégué
+    @Field(key: "periode") var periode: String? // "J" | "M" | "AM"
 
     init() {}
     init(userID: UUID, electionID: UUID, isOwner: Bool = false, role: String = "aucun", dispBureauId: UUID? = nil,dispAssesseur: Bool = false, dispDelegue: Bool = false, periode: String = "") {

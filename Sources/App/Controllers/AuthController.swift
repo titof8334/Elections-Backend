@@ -39,7 +39,7 @@ struct AuthController: RouteCollection {
 
         let token = try req.jwt.sign(payload)
         let elections = userElections.compactMap {
-            MeUserElection(electionId: $0.$election.id, isOwner: $0.isOwner, role: $0.role, dispBureauId: $0.$dispBureau.id, dispDelegue: $0.dispDelegue, dispAssesseur: $0.dispAssesseur, periode: $0.periode)
+            MeUserElection(electionId: $0.$election.id, isOwner: $0.isOwner, role: $0.role, dispBureauId: $0.$dispBureau.id, dispDelegue: $0.dispDelegue ?? false, dispAssesseur: $0.dispAssesseur ?? false, periode: $0.periode ?? "J")
         }
         let bureaux = userBureaux.compactMap {
             MeUserBureau(electionId: $0.$election.id, bureauId: $0.$bureau.id, periode: $0.periode)
@@ -187,8 +187,8 @@ struct AuthController: RouteCollection {
                 isOwner: ue.isOwner,
                 role: ue.role,
                 dispBureauId: ue.$dispBureau.id,
-                dispDelegue: ue.dispDelegue,
-                dispAssesseur: ue.dispAssesseur,
+                dispDelegue: ue.dispDelegue ?? false,
+                dispAssesseur: ue.dispAssesseur ?? false,
                 periode: ue.periode
             )
         }
