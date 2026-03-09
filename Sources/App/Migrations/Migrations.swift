@@ -161,11 +161,11 @@ struct AddElection: AsyncMigration {
 //        let cuers = Election(nom: "Municipales Cuers 2026")
 //        try await cuers.save(on: database)
         if let cuers = try await Election.query(on: database).filter(\.$nom == "Municipales Cuers 2026").first() {
-            try await database.schema("user_election")
-                .id()
-                .field("user_id", .uuid, .required, .references("users", "id", onDelete: .cascade))
-                .field("election_id", .uuid, .required, .references("elections", "id", onDelete: .cascade))
-                .create()
+//            try await database.schema("user_election")
+//                .id()
+//                .field("user_id", .uuid, .required, .references("users", "id", onDelete: .cascade))
+//                .field("election_id", .uuid, .required, .references("elections", "id", onDelete: .cascade))
+//                .create()
             let users = try await User.query(on: database).all()
             for user in users {
                 try await cuers.$users.attach(user, on: database)
