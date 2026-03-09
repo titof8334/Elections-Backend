@@ -195,7 +195,7 @@ struct AddElection: AsyncMigration {
             }
             let users = try await User.query(on: database).all()
             for user in users {
-                try await cuers.$users.attach(user, on: database)
+                try await UserElection(userID: user.id!, electionID: cuers.id!, isOwner: false, role: "aucun", dispBureauId: nil, dispAssesseur: false, dispDelegue: false, periode: "").save(on: database)
             }
             // Add election_id to candidats and bureaux using raw SQL
             if database is SQLDatabase {
