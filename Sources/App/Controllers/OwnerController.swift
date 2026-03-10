@@ -233,6 +233,16 @@ struct OwnerController: RouteCollection {
                 dispDelegue: ue.dispDelegue,
                 periode: ue.periode
             )
+        }.sorted { a, b in
+            if let nomA = a.nom, let nomB = b.nom {
+                if nomA != nomB {
+                    return nomA < nomB
+                }
+            }
+            if let prenomA = a.prenom, let prenomB = b.prenom {
+                return prenomA < prenomB
+            }
+            return false
         }
     }
 
