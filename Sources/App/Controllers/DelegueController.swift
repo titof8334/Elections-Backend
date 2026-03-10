@@ -11,7 +11,8 @@ struct DelegueController: RouteCollection {
     }
     
     func upsertParticipation(req: Request) async throws -> ParticipationDTO {
-        guard let bureauId = req.parameters.get("bureauId", as: UUID.self) else {
+        guard let electionId = req.parameters.get("electionId", as: UUID.self),
+              let bureauId = req.parameters.get("bureauId", as: UUID.self) else {
             throw Abort(.badRequest)
         }
 
@@ -36,7 +37,7 @@ struct DelegueController: RouteCollection {
                                    votants: existing.votants, tauxParticipation: taux,
                                    createdAt: existing.createdAt, updatedAt: existing.updatedAt)
         } else {
-            let participation = Participation(bureauID: bureauId, heure: participationReq.heure, votants: participationReq.votants)
+            let participation = Participation(electionID: electionId, bureauID: bureauId, heure: participationReq.heure, votants: participationReq.votants)
             try await participation.save(on: req.db)
             let taux = bureau.inscrits > 0 ? Double(participation.votants) / Double(bureau.inscrits) * 100 : 0
             return ParticipationDTO(id: participation.id, bureauId: bureauId, heure: participation.heure,
@@ -110,28 +111,46 @@ struct DelegueController: RouteCollection {
     }
     
     func getBureaux(req: Request) async throws -> [BureauDTO] {
+        print("Delegue getBureaux")
         let payload = try req.auth.require(UserPayload.self)
-        // @TODO vérifier que l'utilisateur est Délégué sur le bureau
         guard let electionId = req.parameters.get("electionId", as: UUID.self) else {
             throw Abort(.badRequest)
         }
+        let userElection = try await UserElection.query(on: req.db)
+            .filter(\.$election.$id == electionId)
+            .filter(\.$user.$id == payload.userId)
+            .first()
+        print("Delegue 1")
         let usersBureaux = try await UserBureau.query(on: req.db)
             .filter(\.$election.$id == electionId)
             .filter(\.$user.$id == payload.userId)
+            .with(\.$bureau)
             .all()
-        
-        let bureaux = try await Bureau.query(on: req.db)
-            .filter(\.$id ~~ usersBureaux.map {$0.$bureau.id} )
-            .with(\.$participations)
-            .with(\.$resultats)
-            .sort(\.$numero)
-            .all()
-
-        return try bureaux.map { try toBureauDTO($0) }
+        print("Delegue 2")
+        if let ue = userElection, ue.isOwner || (ue.role == "delegue" && usersBureaux.isEmpty) {
+            print("Delegue 3 \(electionId)")
+            return try await Bureau.query(on: req.db)
+                .filter(\.$election.$id == electionId)
+                .with(\.$participations)
+                .with(\.$resultats)
+                .sort(\.$numero)
+                .all().map { try toBureauDTO($0) }
+        } else {
+            print("Delegue 4")
+            let bureauIds = usersBureaux.compactMap { $0.$bureau.id }
+            print("Delegue 5")
+            return try await Bureau.query(on: req.db)
+                .filter(\.$id ~~ bureauIds)
+                .with(\.$participations)
+                .with(\.$resultats)
+                .sort(\.$numero)
+                .all().map { try toBureauDTO($0) }
+        }
     }
 
     func upsertResultat(req: Request) async throws -> ResultatDTO {
-        guard let bureauId = req.parameters.get("bureauId", as: UUID.self) else {
+        guard let electionId = req.parameters.get("electionId", as: UUID.self),
+              let bureauId = req.parameters.get("bureauId", as: UUID.self) else {
             throw Abort(.badRequest)
         }
 
@@ -156,7 +175,7 @@ struct DelegueController: RouteCollection {
                               voix: existing.voix, bulletinsDepouilles: existing.bulletinsDepouilles,
                               estFinal: existing.estFinal, updatedAt: existing.updatedAt)
         } else {
-            let resultat = Resultat(bureauID: bureauId, candidatId: resultatReq.candidatId,
+            let resultat = Resultat(electionID: electionId, bureauID: bureauId, candidatId: resultatReq.candidatId,
                                    voix: resultatReq.voix, bulletinsDepouilles: resultatReq.bulletinsDepouilles,
                                    estFinal: resultatReq.estFinal ?? false)
             try await resultat.save(on: req.db)
@@ -167,6 +186,7 @@ struct DelegueController: RouteCollection {
     }
     
     private func toBureauDTO(_ bureau: Bureau) throws -> BureauDTO {
+        print("toBureauDTO \(bureau)")
         let participations = bureau.participations.map { p -> ParticipationDTO in
             let taux = bureau.inscrits > 0 ? Double(p.votants) / Double(bureau.inscrits) * 100 : 0
             return ParticipationDTO(id: p.id, bureauId: bureau.id!, heure: p.heure, votants: p.votants,
@@ -199,38 +219,35 @@ struct DelegueController: RouteCollection {
 struct DelegueMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
         guard let electionId = request.parameters.get("electionId", as: UUID.self) else { throw Abort(.badRequest) }
-        guard let bureauId = request.parameters.get("bureauId", as: UUID.self) else { throw Abort(.badRequest) }
         let payload = try request.auth.require(UserPayload.self)
-        // Accès autorisé aux administrateurs
-        if(!payload.isAdmin) {
-            // Check if user is owner or has delegue role for this election
-            guard let userElection = try await UserElection.query(on: request.db)
-                .filter(\.$user.$id == payload.userId)
-                .filter(\.$election.$id == electionId)
-                .first() else {
-                throw Abort(.forbidden, reason: "Accès à l'élection requis")
+        
+        // Check if user is owner or has delegue role for this election
+        guard let userElection = try await UserElection.query(on: request.db)
+            .filter(\.$user.$id == payload.userId)
+            .filter(\.$election.$id == electionId)
+            .first() else {
+            throw Abort(.forbidden, reason: "Accès à l'élection requis")
+        }
+        
+            // Accès autorisé aux propriétaires et délégués de l'élection
+        if(!userElection.isOwner && userElection.role != "delegue") {
+            // Accès autorisé au délégué du bureau
+            
+            // Verify user is a delegue for this election AND is assigned to this bureau
+            guard userElection.role == "assesseur" else {
+                throw Abort(.forbidden, reason: "Accès délégué ou assesseur requis")
             }
-            // Accès autorisé aux propriétaires de l'élection
-            if(!userElection.isOwner) {
-                // Accès autorisé au délégué du bureau
-                // Verify user is a delegue for this election AND is assigned to this bureau
-                guard userElection.role == "delegue" else {
-                    throw Abort(.forbidden, reason: "Accès délégué requis")
-                }
-                
+            if let bureauId = request.parameters.get("bureauId", as: UUID.self) {
                 // Check if user is assigned to this specific bureau
                 let userBureau = try await UserBureau.query(on: request.db)
                     .filter(\.$bureau.$id == bureauId)
                     .filter(\.$user.$id == payload.userId)
                     .first()
-                
                 guard userBureau != nil else {
                     throw Abort(.forbidden, reason: "Vous n'êtes pas assigné à ce bureau")
                 }
-                
             }
             
-
         }
         return try await next.respond(to: request)
     }

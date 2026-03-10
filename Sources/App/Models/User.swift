@@ -7,7 +7,6 @@ final class User: Model, Content, @unchecked Sendable {
     @ID(key: .id) var id: UUID?
     @Field(key: "nom") var nom: String
     @Field(key: "email") var email: String
-    @Field(key: "password_hash") var passwordHash: String
     @Field(key: "is_admin") var isAdmin: Bool
     @OptionalField(key: "zitadel_sub") var zitadelSub: String? // Zitadel User ID
     @OptionalField(key: "prenom") var prenom: String?
@@ -17,14 +16,13 @@ final class User: Model, Content, @unchecked Sendable {
 
     init() {}
 
-    init(id: UUID? = nil, nom: String, email: String, passwordHash: String, isAdmin: Bool = false, zitadelSub: String? = nil, prenom: String? = nil) {
+    init(id: UUID? = nil, nom: String, prenom: String? = nil, email: String, isAdmin: Bool = false, zitadelSub: String? = nil) {
         self.id = id
         self.nom = nom
+        self.prenom = prenom
         self.email = email
-        self.passwordHash = passwordHash
         self.isAdmin = isAdmin
         self.zitadelSub = zitadelSub
-        self.prenom = prenom
     }
 }
 
@@ -54,17 +52,19 @@ final class UserElection: Model, Content, @unchecked Sendable {
     @Parent(key: "election_id") var election: Election
     @Field(key: "is_owner") var isOwner: Bool
     @Field(key: "role") var role: String // "aucun" | "assesseur" | "delegue
+    @Field(key: "is_titulaire") var isTitulaire: Bool
     @OptionalParent(key: "disp_bureau_id") var dispBureau: Bureau? // Bureau d'affectation
     @Field(key: "disp_assesseur") var dispAssesseur: Bool? // Disposition assesseur
     @Field(key: "disp_delegue") var dispDelegue: Bool? // Disposition délégué
     @Field(key: "periode") var periode: String? // "J" | "M" | "AM"
 
     init() {}
-    init(userID: UUID, electionID: UUID, isOwner: Bool = false, role: String = "aucun", dispBureauId: UUID? = nil,dispAssesseur: Bool = false, dispDelegue: Bool = false, periode: String = "") {
+    init(userID: UUID, electionID: UUID, isOwner: Bool = false, role: String = "aucun", isTitulaire: Bool = false, dispBureauId: UUID? = nil,dispAssesseur: Bool = false, dispDelegue: Bool = false, periode: String = "") {
         self.$user.id = userID
         self.$election.id = electionID
         self.isOwner = isOwner
         self.role = role
+        self.isTitulaire = isTitulaire
         self.$dispBureau.id = dispBureauId
         self.dispAssesseur = dispAssesseur
         self.dispDelegue = dispDelegue

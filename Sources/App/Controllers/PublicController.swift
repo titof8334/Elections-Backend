@@ -200,7 +200,7 @@ struct PublicController: RouteCollection {
                 id: election.id,
                 nom: election.nom,
                 isOwner: ue.isOwner,
-                isDelegue: ue.role == "delegue",
+                isScrutateur: ue.role != "aucun",
                 isSubscriber : true
             )
         }
@@ -208,7 +208,7 @@ struct PublicController: RouteCollection {
             id: election.id,
             nom: election.nom,
             isOwner: false,
-            isDelegue: false,
+            isScrutateur: false,
             isSubscriber : false
         )
     }

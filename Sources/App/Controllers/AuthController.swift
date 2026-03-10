@@ -4,60 +4,10 @@ import JWT
 
 struct AuthController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        routes.post("login", use: login)
         routes.post("register", use: register) // Admin only via admin controller
         routes.get("me", use: me)
     }
 
-    func login(req: Request) async throws -> LoginResponse {
-        let loginReq = try req.content.decode(LoginRequest.self)
-
-        guard let user = try await User.query(on: req.db)
-            .filter(\.$email == loginReq.email)
-            .first() else {
-            throw Abort(.unauthorized, reason: "Email ou mot de passe incorrect")
-        }
-
-        guard try Bcrypt.verify(loginReq.password, created: user.passwordHash) else {
-            throw Abort(.unauthorized, reason: "Email ou mot de passe incorrect")
-        }
-
-        let userBureaux = try await UserBureau.query(on: req.db)
-            .filter(\.$user.$id == user.id!)
-            .all()
-        let userElections = try await UserElection.query(on: req.db)
-            .filter(\.$user.$id == user.id!)
-            .all()
-        let payload = UserPayload(
-            sub: .init(value: user.id!.uuidString),
-            exp: .init(value: Date().addingTimeInterval(60 * 60 * 12)), // 12h
-            userId: user.id!,
-            email: user.email,
-            nom: user.nom,
-            isAdmin: user.isAdmin
-        )
-
-        let token = try req.jwt.sign(payload)
-        let elections = userElections.compactMap {
-            MeUserElection(electionId: $0.$election.id, isOwner: $0.isOwner, role: $0.role, dispBureauId: $0.$dispBureau.id, dispDelegue: $0.dispDelegue ?? false, dispAssesseur: $0.dispAssesseur ?? false, periode: $0.periode ?? "J")
-        }
-        let bureaux = userBureaux.compactMap {
-            MeUserBureau(electionId: $0.$election.id, bureauId: $0.$bureau.id, periode: $0.periode)
-        }
-
-        return LoginResponse(
-            token: token,
-            user: MeResponse(
-                id: user.id!,
-                nom: user.nom,
-                prenom: user.prenom,
-                email: user.email,
-                isAdmin: user.isAdmin,
-                bureaux: bureaux,
-                elections: elections
-            )
-        )
-    }
 
     func register(req: Request) async throws -> UserDTO {
         let createReq = try req.content.decode(CreateUserRequest.self)
@@ -70,13 +20,12 @@ struct AuthController: RouteCollection {
             throw Abort(.conflict, reason: "Cet email est déjà utilisé")
         }
 
-        let hash = try Bcrypt.hash(createReq.password ?? "")
         let user = User(
             nom: createReq.nom,
-            email: createReq.email,
-            passwordHash: hash,
-            zitadelSub: nil,
             prenom: createReq.prenom,
+            email: createReq.email,
+            isAdmin: createReq.isAdmin ?? false,
+            zitadelSub: nil
         )
         
         try await user.save(on: req.db)
@@ -143,10 +92,10 @@ struct AuthController: RouteCollection {
                 
                 let newUser = User(
                     nom: userInfo.family_name ?? "Utilisateur",
+                    prenom: userInfo.given_name,
                     email: userInfo.email ?? "user-\(zitadelPayload.sub.value)@zitadel.local",
-                    passwordHash: "",  // No password for Zitadel users
-                    zitadelSub: zitadelPayload.sub.value,
-                    prenom: userInfo.given_name
+                    isAdmin: false,
+                    zitadelSub: zitadelPayload.sub.value
                 )
                 
                 try await newUser.save(on: req.db)
@@ -174,25 +123,22 @@ struct AuthController: RouteCollection {
             return MeUserBureau(electionId: ub.$election.id, bureauId: bureauId, periode: ub.periode)
         }
         
-        // Load UserElection pivots
+        let elections = try await Election.query(on: req.db)
+            .all()
         let userElections = try await UserElection.query(on: req.db)
             .filter(\.$user.$id == user.requireID())
-            .with(\.$election)
             .all()
-        
-        let elections = userElections.compactMap { ue -> MeUserElection? in
-            guard let electionId = ue.election.id else { return nil }
-            return MeUserElection(
-                electionId: electionId,
-                isOwner: ue.isOwner,
-                role: ue.role,
-                dispBureauId: ue.$dispBureau.id,
-                dispDelegue: ue.dispDelegue ?? false,
-                dispAssesseur: ue.dispAssesseur ?? false,
-                periode: ue.periode
+        let electionsDTO = elections.map { e in
+            let ue = userElections.first(where: { $0.$election.id == e.id})
+            return ElectionDTO(
+                id: e.id!,
+                nom: e.nom,
+                isOwner: ue?.isOwner ?? false,
+                isScrutateur: ue?.role != "aucun",
+                isSubscriber: ue == nil ? false : true,
             )
         }
-        
+                        
         return MeResponse(
             id: user.id ?? UUID(),
             nom: user.nom,
@@ -200,7 +146,7 @@ struct AuthController: RouteCollection {
             email: user.email,
             isAdmin: user.isAdmin,
             bureaux: bureaux,
-            elections: elections,
+            elections: electionsDTO,
         )
     }
 }

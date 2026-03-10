@@ -116,7 +116,7 @@ struct AuthUserController: RouteCollection {
             .with(\.$election)
             .all()
         return ues.map { e in
-            ElectionDTO(id: e.election.id, nom: e.election.nom, isOwner: e.isOwner, isDelegue: e.role == "delegue", isSubscriber: true)
+            ElectionDTO(id: e.election.id, nom: e.election.nom, isOwner: e.isOwner, isScrutateur: e.role != "aucun", isSubscriber: true)
         }
     }
     

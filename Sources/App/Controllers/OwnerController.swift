@@ -226,6 +226,7 @@ struct OwnerController: RouteCollection {
                 isAdmin: ue.user.isAdmin,
                 isOwner: ue.isOwner,
                 role: ue.role,
+                isTitulaire: ue.isTitulaire,
                 bureaux: userBureaux.map { ElectionUserBureauDTO(id: $0.bureau.id, periode: $0.periode) },
                 dispBureauId: ue.$dispBureau.id,
                 dispAssesseur: ue.dispAssesseur,
@@ -256,7 +257,7 @@ struct OwnerController: RouteCollection {
         try await UserBureau.query(on: req.db).filter(\.$election.$id == electionId).filter(\.$user.$id == userId).delete()
         try await UserElection(
             userID: userId, electionID: electionId,
-            isOwner: updateReq.isOwner ?? false, role: updateReq.role ?? "aucun",
+            isOwner: updateReq.isOwner ?? false, role: updateReq.role ?? "aucun", isTitulaire: updateReq.isTitulaire ?? false,
             dispBureauId: updateReq.dispBureauId, dispAssesseur: updateReq.dispAssesseur ?? false, dispDelegue: updateReq.dispDelegue ?? false, periode: updateReq.periode ?? "J"
         ).save(on: req.db)
         if let bureaux = updateReq.bureaux {
@@ -368,7 +369,7 @@ extension OwnerController {
             let ubs = usersBureaux?.filter { $0.$bureau.id == bureau.id }
             users = ues.map { ue in
                 let ub = ubs?.first(where: { $0.$user.id == ue.$user.id})
-                return UserBureauDTO(id: ue.$user.id, nom: ue.user.nom, prenom: ue.user.prenom, role: ub != nil ? ue.role : nil, periode: ub != nil ? ub?.periode : nil, dispAssesseur: ue.$dispBureau.id == bureau.id ? ue.dispAssesseur : false, dispDelegue: ue.$dispBureau.id == bureau.id ? ue.dispDelegue : false, dispPeriode: ue.periode)
+                return UserBureauDTO(id: ue.$user.id, nom: ue.user.nom, prenom: ue.user.prenom, role: ub != nil ? ue.role : nil, isTitulaire: ue.isTitulaire, periode: ub != nil ? ub?.periode : nil, dispAssesseur: ue.$dispBureau.id == bureau.id ? ue.dispAssesseur : false, dispDelegue: ue.$dispBureau.id == bureau.id ? ue.dispDelegue : false, dispPeriode: ue.periode)
             }
         }
         return BureauDTO(

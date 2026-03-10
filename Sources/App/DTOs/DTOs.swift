@@ -50,7 +50,7 @@ struct MeResponse: Content {
     let email: String
     let isAdmin: Bool
     let bureaux: [MeUserBureau]
-    let elections: [MeUserElection]
+    let elections: [ElectionDTO]
 }
 
 struct MeUserBureau: Content {
@@ -58,17 +58,20 @@ struct MeUserBureau: Content {
     let bureauId: UUID
     let periode: String?
 }
-
+/*
 struct MeUserElection: Content {
+    let id: UUID
     let electionId: UUID
+    let nom: String
     let isOwner: Bool
     let role: String
+    let isTitulaire: Bool
     let dispBureauId: UUID?
     let dispDelegue: Bool
     let dispAssesseur: Bool
     let periode: String?
 }
-
+*/
 struct UserDTO: Content {
     let id: UUID?
     let nom: String?
@@ -85,6 +88,7 @@ struct ElectionUserDTO: Content {
     let isAdmin: Bool?
     let isOwner: Bool?
     let role: String?
+    let isTitulaire: Bool?
     let bureaux: [ElectionUserBureauDTO]?
     let dispBureauId: UUID?
     let dispAssesseur: Bool?
@@ -101,7 +105,7 @@ struct ElectionDTO: Content {
     let id: UUID?
     let nom: String
     let isOwner: Bool?
-    let isDelegue: Bool?
+    let isScrutateur: Bool?
     let isSubscriber: Bool?
 }
 
@@ -130,6 +134,7 @@ struct UserBureauDTO: Content {
     let nom: String?
     let prenom: String?
     let role: String?
+    let isTitulaire: Bool
     let periode: String?
     let dispAssesseur: Bool?
     let dispDelegue: Bool?
@@ -248,14 +253,15 @@ struct CreateUserRequest: Content {
     let nom: String
     let prenom: String?
     let email: String
-    let password: String?
+    let isAdmin: Bool?
 }
 // Update user
 struct UpdateUserRequest: Content {
     let nom: String?
+    let prenom: String?
     let email: String?
     let role: String?
-    let prenom: String?
+    let isTitulaire: Bool
     let dispBureauId: UUID?
     let dispAssesseur: Bool?
     let dispDelegue: Bool?

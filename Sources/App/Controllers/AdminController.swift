@@ -10,6 +10,7 @@ struct AdminController: RouteCollection {
 
         // Users management
         admin.get("users", use: getUsers)
+        admin.post("users", use: createUser)
         admin.put("users", ":userId", use: updateUser)
         admin.delete("users", ":userId", use: deleteUser)
         

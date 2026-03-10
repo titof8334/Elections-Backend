@@ -10,7 +10,6 @@ struct CreateUser: AsyncMigration {
             .field("nom", .string, .required)
             .field("prenom", .string)
             .field("email", .string, .required)
-            .field("password_hash", .string, .required)
             .field("zitadel_sub", .string)
             .field("is_admin", .bool, .required, .sql(.default(false)))
             .field("created_at", .datetime)
@@ -110,7 +109,7 @@ struct CreateCandidat: AsyncMigration {
 struct SeedAdminUser: AsyncMigration {
     func prepare(on database: Database) async throws {
         let hash = try Bcrypt.hash("admin123")
-        let admin = User(nom: "Administrateur", email: "christ.arnal@laposte.net", passwordHash: hash, isAdmin: true)
+        let admin = User(nom: "Administrateur", email: "christ.arnal@laposte.net", isAdmin: true)
         try await admin.save(on: database)
     }
 
@@ -266,6 +265,38 @@ struct AddElectionUsers: AsyncMigration {
     }
 }
 
+struct FixElectionIdInParticipationsAndResultats: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        if let sqlDatabase = database as? SQLDatabase {
+            // Update participations table: set election_id from bureau's election_id
+            try await sqlDatabase.raw("""
+                UPDATE participations 
+                SET election_id = (
+                    SELECT election_id 
+                    FROM bureaux 
+                    WHERE bureaux.id = participations.bureau_id
+                )
+                WHERE election_id IS NULL
+            """).run()
+            
+            // Update resultats table: set election_id from bureau's election_id
+            try await sqlDatabase.raw("""
+                UPDATE resultats 
+                SET election_id = (
+                    SELECT election_id 
+                    FROM bureaux 
+                    WHERE bureaux.id = resultats.bureau_id
+                )
+                WHERE election_id IS NULL
+            """).run()
+        }
+    }
+
+    func revert(on database: Database) async throws {
+        // Revert not implemented
+    }
+}
+
 struct AddElectionLinks: AsyncMigration {
     func prepare(on database: Database) async throws {
         if database is SQLDatabase {
@@ -315,3 +346,42 @@ struct AddElectionUserBureau: AsyncMigration {
         // Revert not implemented
     }
 }
+struct AddTitulaire: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        if database is SQLDatabase {
+            let sqlDatabase = database as! SQLDatabase
+            try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN is_titulaire BOOL NOT NULL DEFAULT FALSE").run()
+
+        } else {
+            print("no SQL Base")
+            // Fallback for other databases
+            try await database.schema("user_election")
+                .field("is_titulaire", .bool, .required, .sql(.default(false)))
+                .update()
+        }
+    }
+
+    func revert(on database: Database) async throws {
+        // Revert not implemented
+    }
+}
+struct RemovePassword: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        if database is SQLDatabase {
+            let sqlDatabase = database as! SQLDatabase
+            try await sqlDatabase.raw("ALTER TABLE users DROP COLUMN password_hash").run()
+
+        } else {
+            print("no SQL Base")
+            // Fallback for other databases
+            try await database.schema("user")
+                .deleteField("password_hash")
+                .update()
+        }
+    }
+
+    func revert(on database: Database) async throws {
+        // Revert not implemented
+    }
+}
+

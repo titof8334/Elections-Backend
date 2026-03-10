@@ -15,7 +15,8 @@ final class Participation: Model, Content, @unchecked Sendable {
 
     init() {}
 
-    init(bureauID: UUID, heure: String, votants: Int) {
+    init(electionID: UUID, bureauID: UUID, heure: String, votants: Int) {
+        self.$election.id = electionID
         self.$bureau.id = bureauID
         self.heure = heure
         self.votants = votants
@@ -38,7 +39,8 @@ final class Resultat: Model, Content, @unchecked Sendable {
 
     init() {}
 
-    init(bureauID: UUID, candidatId: UUID, voix: Int, bulletinsDepouilles: Int, estFinal: Bool = false) {
+    init(electionID: UUID, bureauID: UUID, candidatId: UUID, voix: Int, bulletinsDepouilles: Int, estFinal: Bool = false) {
+        self.$election.id = electionID
         self.$bureau.id = bureauID
         self.candidatId = candidatId
         self.voix = voix
