@@ -57,6 +57,7 @@ struct AdminController: RouteCollection {
         let updateReq = try req.content.decode(UserDTO.self)
         user.nom = updateReq.nom ?? user.nom
         user.prenom = updateReq.prenom ?? user.prenom
+        user.email = updateReq.email ?? user.email
         user.isAdmin = updateReq.isAdmin ?? user.isAdmin
         try await user.save(on: req.db)
         return .noContent
