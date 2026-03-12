@@ -422,3 +422,22 @@ struct OptimizeResultat2: AsyncMigration {
         // Revert not implemented
     }
 }
+
+struct OptimizeResultat3: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        if database is SQLDatabase {
+            let sqlDatabase = database as! SQLDatabase
+            try await sqlDatabase.raw("ALTER TABLE bureaux ADD COLUMN votants INTEGER").run()
+
+        } else {
+            // Fallback for other databases
+            try await database.schema("resultats")
+                .field("votants", .int, .required)
+                .update()
+        }
+    }
+
+    func revert(on database: Database) async throws {
+        // Revert not implemented
+    }
+}
