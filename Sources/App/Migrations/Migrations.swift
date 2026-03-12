@@ -301,7 +301,6 @@ struct AddElectionLinks: AsyncMigration {
     func prepare(on database: Database) async throws {
         if database is SQLDatabase {
             let defElection = try await Election.query(on: database).first()
-            print("SQL Base")
             let sqlDatabase = database as! SQLDatabase
             try await sqlDatabase.raw("ALTER TABLE resultats ADD COLUMN election_id TEXT").run()
             try await sqlDatabase.raw("ALTER TABLE participations ADD COLUMN election_id TEXT").run()
@@ -310,7 +309,6 @@ struct AddElectionLinks: AsyncMigration {
             try await sqlDatabase.raw("UPDATE participations SET election_id = '\(raw: defElection?.requireID().uuidString ?? "")'").run()
 
         } else {
-            print("no SQL Base")
             // Fallback for other databases
             try await database.schema("resultats")
                 .field("election_id", .uuid)
@@ -334,7 +332,6 @@ struct AddElectionUserBureau: AsyncMigration {
             try await sqlDatabase.raw("UPDATE user_bureau SET election_id = '\(raw: defElection?.requireID().uuidString ?? "")'").run()
 
         } else {
-            print("no SQL Base")
             // Fallback for other databases
             try await database.schema("user_bureau")
                 .field("election_id", .uuid)
@@ -353,7 +350,6 @@ struct AddTitulaire: AsyncMigration {
             try await sqlDatabase.raw("ALTER TABLE user_election ADD COLUMN is_titulaire BOOL NOT NULL DEFAULT FALSE").run()
 
         } else {
-            print("no SQL Base")
             // Fallback for other databases
             try await database.schema("user_election")
                 .field("is_titulaire", .bool, .required, .sql(.default(false)))
@@ -372,7 +368,6 @@ struct RemovePassword: AsyncMigration {
             try await sqlDatabase.raw("ALTER TABLE users DROP COLUMN password_hash").run()
 
         } else {
-            print("no SQL Base")
             // Fallback for other databases
             try await database.schema("user")
                 .deleteField("password_hash")
@@ -392,7 +387,6 @@ struct OptimizeResultat: AsyncMigration {
             try await sqlDatabase.raw("ALTER TABLE resultats DROP COLUMN bulletins_depouilles").run()
 
         } else {
-            print("no SQL Base")
             // Fallback for other databases
             try await database.schema("resultats")
                 .deleteField("bulletins_depouilles")
@@ -413,7 +407,6 @@ struct OptimizeResultat2: AsyncMigration {
             try await sqlDatabase.raw("ALTER TABLE resultats DROP COLUMN est_final").run()
 
         } else {
-            print("no SQL Base")
             // Fallback for other databases
             try await database.schema("resultats")
                 .field("votants", .int, .required)

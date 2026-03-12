@@ -31,31 +31,18 @@ struct AuthUserController: RouteCollection {
     }
     func updateMyPrefs(req: Request) async throws -> UserElectionDTO {
         guard let userElectionId = req.parameters.get("userElectionId", as: UUID.self) else {
-            print("pas de userElectionId")
             throw Abort(.badRequest)
         }
         guard let prefs = try await UserElection.find(userElectionId,on: req.db)
             else {
-            print("pas de UserElection")
                 throw Abort(.forbidden, reason: "Rattachez-vous d'abord à cette élection.")
         }
-        print("Décodage")
         let updateReq = try req.content.decode(UserElectionDTO.self)
-        print("Décodage OK")
         prefs.$dispBureau.id = updateReq.dispBureauId
         prefs.dispAssesseur = updateReq.dispAssesseur ?? prefs.dispAssesseur
         prefs.dispDelegue = updateReq.dispDelegue ?? prefs.dispDelegue
         prefs.periode = updateReq.periode ?? prefs.periode
-        print("tentative sauvegarde")
         try await prefs.save(on: req.db)
-        print("Sauvegarde OK")
-        print(UserElectionDTO(
-            id: prefs.id!,
-            dispBureauId: prefs.$dispBureau.id,
-            dispAssesseur: prefs.dispAssesseur,
-            dispDelegue: prefs.dispDelegue,
-            periode: prefs.periode
-        ))
         return UserElectionDTO(
             id: prefs.id!,
             dispBureauId: prefs.$dispBureau.id,

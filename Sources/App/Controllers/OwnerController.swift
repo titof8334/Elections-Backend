@@ -294,8 +294,6 @@ struct OwnerController: RouteCollection {
 
     // MARK: Candidats
     func createCandidat(req: Request) async throws -> CandidatDTO {
-        print("createCandidat")
-        print(req.parameters)
         guard let electionId = req.parameters.get("electionId", as: UUID.self) else { throw Abort(.badRequest) }
         let createReq = try req.content.decode(CreateCandidatRequest.self)
         let candidat = Candidat(electionId: electionId, nom: createReq.nom, prenom: createReq.prenom, liste: createReq.liste,
