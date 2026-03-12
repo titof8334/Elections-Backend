@@ -120,6 +120,8 @@ struct BureauDTO: Content {
     let nom: String
     let adresse: String
     let inscrits: Int?
+    let votants: Int?
+    let exprimes: Int?
     let bulletinsDepouilles: Int?
     let bulletinsNuls: Int?
     let bulletinsBlancs: Int?
@@ -153,10 +155,6 @@ struct UpdateBureauRequest: Content {
     let numero: Int?
     let nom: String?
     let adresse: String?
-    let bulletinsDepouilles: Int?
-    let bulletinsNuls: Int?
-    let bulletinsBlancs: Int?
-    let depouillementTermine: Bool?
 }
 
 // Participation
@@ -181,17 +179,21 @@ struct ResultatDTO: Content {
     let bureauId: UUID
     let candidatId: UUID
     let voix: Int
-    let bulletinsDepouilles: Int
-    let estFinal: Bool
     let updatedAt: Date?
 }
 
-struct UpsertResultatRequest: Content {
+struct UpsertResultatBureauRequest: Content {
+    let nuls: Int
+    let blancs: Int
+    let bulletinsDepouilles: Int
+    let resultats: [UpsertResultatBureauCandidatRequest]
+    let estFinal: Bool
+}
+struct UpsertResultatBureauCandidatRequest: Content {
     let candidatId: UUID
     let voix: Int
-    let bulletinsDepouilles: Int
-    let estFinal: Bool?
 }
+
 
 // Candidat
 struct CandidatDTO: Content {

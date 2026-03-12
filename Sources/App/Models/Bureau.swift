@@ -10,6 +10,8 @@ final class Bureau: Model, Content, @unchecked Sendable {
     @Field(key: "nom") var nom: String
     @Field(key: "adresse") var adresse: String
     @Field(key: "inscrits") var inscrits: Int
+    @Field(key: "votants") var votants: Int
+    @Field(key: "exprimes") var exprimes: Int
     @Field(key: "bulletins_depouilles") var bulletinsDepouilles: Int
     @Field(key: "bulletins_nuls") var bulletinsNuls: Int
     @Field(key: "bulletins_blancs") var bulletinsBlancs: Int
@@ -29,6 +31,8 @@ final class Bureau: Model, Content, @unchecked Sendable {
         self.nom = nom
         self.adresse = adresse
         self.inscrits = inscrits
+        self.votants = 0
+        self.exprimes = 0
         self.bulletinsDepouilles = 0
         self.bulletinsNuls = 0
         self.bulletinsBlancs = 0

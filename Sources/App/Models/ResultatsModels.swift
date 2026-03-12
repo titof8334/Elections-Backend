@@ -32,20 +32,16 @@ final class Resultat: Model, Content, @unchecked Sendable {
     @Parent(key: "bureau_id") var bureau: Bureau
     @Field(key: "candidat_id") var candidatId: UUID
     @Field(key: "voix") var voix: Int
-    @Field(key: "bulletins_depouilles") var bulletinsDepouilles: Int
-    @Field(key: "est_final") var estFinal: Bool
     @Timestamp(key: "created_at", on: .create) var createdAt: Date?
     @Timestamp(key: "updated_at", on: .update) var updatedAt: Date?
 
     init() {}
 
-    init(electionID: UUID, bureauID: UUID, candidatId: UUID, voix: Int, bulletinsDepouilles: Int, estFinal: Bool = false) {
+    init(electionID: UUID, bureauID: UUID, candidatId: UUID, voix: Int) {
         self.$election.id = electionID
         self.$bureau.id = bureauID
         self.candidatId = candidatId
         self.voix = voix
-        self.bulletinsDepouilles = bulletinsDepouilles
-        self.estFinal = estFinal
     }
 }
 

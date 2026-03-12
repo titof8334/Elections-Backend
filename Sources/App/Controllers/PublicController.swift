@@ -174,8 +174,8 @@ struct PublicController: RouteCollection {
 
         let resultats = bureau.resultats.map { r in
             ResultatDTO(id: r.id, bureauId: bureau.id!, candidatId: r.candidatId,
-                       voix: r.voix, bulletinsDepouilles: r.bulletinsDepouilles,
-                       estFinal: r.estFinal, updatedAt: r.updatedAt)
+                       voix: r.voix,
+                       updatedAt: r.updatedAt)
         }
 
         return BureauDTO(
@@ -184,6 +184,8 @@ struct PublicController: RouteCollection {
             nom: bureau.nom,
             adresse: bureau.adresse,
             inscrits: bureau.inscrits,
+            votants: bureau.votants,
+            exprimes: bureau.exprimes,
             bulletinsDepouilles: bureau.bulletinsDepouilles,
             bulletinsNuls: bureau.bulletinsNuls,
             bulletinsBlancs: bureau.bulletinsBlancs,

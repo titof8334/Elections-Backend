@@ -385,3 +385,47 @@ struct RemovePassword: AsyncMigration {
     }
 }
 
+struct OptimizeResultat: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        if database is SQLDatabase {
+            let sqlDatabase = database as! SQLDatabase
+            try await sqlDatabase.raw("ALTER TABLE resultats DROP COLUMN bulletins_depouilles").run()
+
+        } else {
+            print("no SQL Base")
+            // Fallback for other databases
+            try await database.schema("resultats")
+                .deleteField("bulletins_depouilles")
+                .update()
+        }
+    }
+
+    func revert(on database: Database) async throws {
+        // Revert not implemented
+    }
+}
+struct OptimizeResultat2: AsyncMigration {
+    func prepare(on database: Database) async throws {
+        if database is SQLDatabase {
+            let sqlDatabase = database as! SQLDatabase
+            try await sqlDatabase.raw("ALTER TABLE bureaux ADD COLUMN votants INTEGER").run()
+            try await sqlDatabase.raw("ALTER TABLE bureaux ADD COLUMN exprimes INTEGER").run()
+            try await sqlDatabase.raw("ALTER TABLE resultats DROP COLUMN est_final").run()
+
+        } else {
+            print("no SQL Base")
+            // Fallback for other databases
+            try await database.schema("resultats")
+                .field("votants", .int, .required)
+                .field("exprimes", .int, .required)
+                .update()
+            try await database.schema("bureaux")
+                .deleteField("est_final")
+                .update()
+        }
+    }
+
+    func revert(on database: Database) async throws {
+        // Revert not implemented
+    }
+}

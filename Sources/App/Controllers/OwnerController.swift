@@ -388,6 +388,8 @@ extension OwnerController {
             nom: bureau.nom,
             adresse: bureau.adresse,
             inscrits: nil,
+            votants: nil,
+            exprimes: nil,
             bulletinsDepouilles: nil,
             bulletinsNuls: nil,
             bulletinsBlancs: nil,
