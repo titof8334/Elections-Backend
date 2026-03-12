@@ -18,5 +18,5 @@ jobs:
           script: |
             cd Elections-Backend/
             git pull
-            swift build -c release
+            /home/debian/.local/share/swiftly/bin/swift build -c release
             sudo supervisorctl restart ElectionsSvr
