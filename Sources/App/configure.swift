@@ -43,6 +43,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(FixElectionIdInParticipationsAndResultats())
     app.migrations.add(OptimizeResultat())
     app.migrations.add(OptimizeResultat2())
+    app.migrations.add(OptimizeResultat3())
     // app.migrations.add(MakeElectionIdRequired()) // Décommentez quand vous voulez rendre election_id obligatoire
     try await app.autoMigrate().get()
 
