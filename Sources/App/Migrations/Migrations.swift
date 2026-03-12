@@ -427,13 +427,8 @@ struct OptimizeResultat3: AsyncMigration {
     func prepare(on database: Database) async throws {
         if database is SQLDatabase {
             let sqlDatabase = database as! SQLDatabase
-            try await sqlDatabase.raw("ALTER TABLE bureaux ADD COLUMN votants INTEGER").run()
-
-        } else {
-            // Fallback for other databases
-            try await database.schema("resultats")
-                .field("votants", .int, .required)
-                .update()
+            try await sqlDatabase.raw("UPDATE bureaux SET votants = 0").run()
+            try await sqlDatabase.raw("UPDATE bureaux SET exprimes = 0").run()
         }
     }
 
