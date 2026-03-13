@@ -336,12 +336,15 @@ struct OwnerController: RouteCollection {
             .all(\.$id)
         
         // Delete all UserBureau entries for these bureaux
-        try await UserBureau.query(on: req.db)
-            .filter(\.$bureau.$id ~~ bureauxIds)
-            .delete()
+//        try await UserBureau.query(on: req.db)
+//            .filter(\.$bureau.$id ~~ bureauxIds)
+//            .delete()
 
         let bureaux = try await Bureau.query(on: req.db).all()
         for bureau in bureaux {
+            bureau.inscrits = 0
+            bureau.votants = 0
+            bureau.exprimes = 0
             bureau.bulletinsDepouilles = 0
             bureau.bulletinsNuls = 0
             bureau.bulletinsBlancs = 0
