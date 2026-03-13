@@ -78,20 +78,29 @@ struct DelegueController: RouteCollection {
 
         return .ok
     }
-    func updateVotants(req: Request) async throws -> HTTPStatus {
-        guard let id = req.parameters.get("bureauId", as: UUID.self) else {
+    func updateVotants(req: Request) async throws -> Bool {
+        guard let bureauId = req.parameters.get("bureauId", as: UUID.self) else {
             throw Abort(.badRequest)
         }
 
-        guard let bureau = try await Bureau.find(id, on: req.db) else {
+        guard let bureau = try await Bureau.find(bureauId, on: req.db) else {
             throw Abort(.notFound)
         }
-    
+        guard let finalParticipation = try await Participation.query(on: req.db)
+            .filter(\.$bureau.$id == bureauId)
+            .filter(\.$heure == "final")
+            .first() else {
+            throw Abort(.notFound, reason: "participation finale non définie")
+        }
+        
         bureau.votants = try req.content.decode(Int.self)
-
+        finalParticipation.votants = bureau.votants
+        bureau.depouillementTermine = bureau.votants == (bureau.bulletinsNuls + bureau.bulletinsBlancs + bureau.bulletinsDepouilles)
+        
         try await bureau.save(on: req.db)
+        try await finalParticipation.save(on: req.db)
 
-        return .ok
+        return bureau.depouillementTermine
     }
 
     func upsertParticipation(req: Request) async throws -> BureauDTO {

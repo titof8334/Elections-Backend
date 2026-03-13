@@ -55,14 +55,10 @@ struct AdminController: RouteCollection {
         guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
         guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
         let updateReq = try req.content.decode(UserDTO.self)
-        print("updateReq")
-        print(updateReq)
         user.nom = updateReq.nom ?? user.nom
         user.prenom = updateReq.prenom ?? user.prenom
         user.email = updateReq.email ?? user.email
         user.isAdmin = updateReq.isAdmin ?? user.isAdmin
-        print("user")
-        print(user)
         try await user.save(on: req.db)
         return .noContent
     }

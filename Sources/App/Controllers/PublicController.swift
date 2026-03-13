@@ -27,7 +27,8 @@ struct PublicController: RouteCollection {
             .sort(\.$ordre).all()
 
         let totalInscrits = bureaux.reduce(0) { $0 + $1.inscrits }
-
+        let totalDepouilles = bureaux.reduce(0) { $0 + $1.bulletinsDepouilles }
+        
         // Collect final participation per bureau
         var totalVotants = 0
         var heuresDict: [String: Int] = [:]
@@ -46,18 +47,26 @@ struct PublicController: RouteCollection {
 
         // Résultats globaux par candidat
         var voixParCandidat: [UUID: Int] = [:]
+        var voixParCandidatProjetees: [UUID: Int] = [:]
         var totalVoixGlobal = 0
+        var totalVoixProjetees = 0
         for bureau in bureaux {
+            let tauxBureau = bureau.bulletinsDepouilles == 0 ? Double(0) : Double(bureau.votants) / Double(bureau.bulletinsDepouilles)
             for resultat in bureau.resultats {
+                let voixProjettees = Double(resultat.voix) * tauxBureau
                 voixParCandidat[resultat.candidatId, default: 0] += resultat.voix
+                voixParCandidatProjetees[resultat.candidatId, default: 0] += Int(voixProjettees)
                 totalVoixGlobal += resultat.voix
+                totalVoixProjetees += Int(voixProjettees)
             }
         }
 
         let resultatsGlobaux: [ResultatGlobal] = candidats.compactMap { candidat in
             guard let id = candidat.id else { return nil }
             let voix = voixParCandidat[id] ?? 0
+            let voixProjetees = voixParCandidatProjetees[id] ?? 0
             let pct = totalVoixGlobal > 0 ? Double(voix) / Double(totalVoixGlobal) * 100 : 0
+            let pctProjete = totalVoixProjetees > 0 ? Double(voixProjetees) / Double(totalVoixProjetees) * 100 : 0
             return ResultatGlobal(
                 candidatId: id,
                 candidatNom: candidat.nom,
@@ -65,7 +74,10 @@ struct PublicController: RouteCollection {
                 candidatListe: candidat.liste,
                 couleur: candidat.couleur,
                 totalVoix: voix,
-                pourcentage: pct
+                pourcentage: pct,
+                totalVoixProjete: voixProjetees,
+                pourcentageProjete: pctProjete,
+                
             )
         }.sorted { $0.totalVoix > $1.totalVoix }
 
@@ -78,13 +90,14 @@ struct PublicController: RouteCollection {
 
         let bureauResumes: [BureauResume] = bureaux.compactMap { b in
             guard let id = b.id else { return nil }
-            return BureauResume(id: id, numero: b.numero, nom: b.nom, inscrits: b.inscrits,
+            return BureauResume(id: id, numero: b.numero, nom: b.nom, inscrits: b.inscrits, votants: b.votants,
                                 bulletinsDepouilles: b.bulletinsDepouilles, depouillementTermine: b.depouillementTermine)
         }
 
         return SyntheseGlobale(
             totalInscrits: totalInscrits,
             totalVotants: totalVotants,
+            totalDepouilles: totalDepouilles,
             tauxParticipationGlobal: tauxGlobal,
             bureaux: bureauResumes,
             resultatsGlobaux: resultatsGlobaux,

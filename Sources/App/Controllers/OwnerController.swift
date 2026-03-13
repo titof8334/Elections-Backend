@@ -326,21 +326,24 @@ struct OwnerController: RouteCollection {
     }
 
     // MARK: Reset
-    func resetElection(req: Request) async throws -> HTTPStatus {
+    func resetElection(req: Request) async throws -> ElectionDTO {
         guard let electionId = req.parameters.get("electionId", as: UUID.self) else { throw Abort(.badRequest) }
+        guard let election = try await Election.find(electionId, on: req.db) else {
+            throw Abort(.notFound)
+        }
         try await Resultat.query(on: req.db).filter(\.$election.$id == electionId).delete()
         try await Participation.query(on: req.db).filter(\.$election.$id == electionId).delete()
         // Get all bureau IDs for this election
-        let bureauxIds = try await Bureau.query(on: req.db)
-            .filter(\.$election.$id == electionId)
-            .all(\.$id)
+//        let bureauxIds = try await Bureau.query(on: req.db)
+//            .filter(\.$election.$id == electionId)
+//            .all(\.$id)
         
         // Delete all UserBureau entries for these bureaux
 //        try await UserBureau.query(on: req.db)
 //            .filter(\.$bureau.$id ~~ bureauxIds)
 //            .delete()
 
-        let bureaux = try await Bureau.query(on: req.db).all()
+        let bureaux = try await Bureau.query(on: req.db).filter(\.$election.$id == electionId).all()
         for bureau in bureaux {
             bureau.inscrits = 0
             bureau.votants = 0
@@ -351,8 +354,36 @@ struct OwnerController: RouteCollection {
             bureau.depouillementTermine = false
             try await bureau.save(on: req.db)
         }
-        return .ok
+        
+        var userElection: UserElection? = nil
+        if let payload = req.auth.get(UserPayload.self) {
+            userElection = try await UserElection.query(on: req.db)
+                .filter(\.$election.$id == electionId)
+                .filter(\.$user.$id == payload.userId)
+                .first()
+        }
+        return try toElectionDTO(election,userElection: userElection)
     }
+    
+    private func toElectionDTO(_ election: Election, userElection: UserElection? = nil) throws -> ElectionDTO {
+        if let ue = userElection {
+            return ElectionDTO(
+                id: election.id,
+                nom: election.nom,
+                isOwner: ue.isOwner,
+                isScrutateur: ue.role != "aucun",
+                isSubscriber : true
+            )
+        }
+        return ElectionDTO(
+            id: election.id,
+            nom: election.nom,
+            isOwner: false,
+            isScrutateur: false,
+            isSubscriber : false
+        )
+    }
+
 }
 
 struct OwnerMiddleware: AsyncMiddleware {

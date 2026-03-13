@@ -217,6 +217,7 @@ struct CreateCandidatRequest: Content {
 struct SyntheseGlobale: Content {
     let totalInscrits: Int
     let totalVotants: Int
+    let totalDepouilles: Int
     let tauxParticipationGlobal: Double
     let bureaux: [BureauResume]
     let resultatsGlobaux: [ResultatGlobal]
@@ -230,6 +231,7 @@ struct BureauResume: Content {
     let numero: Int
     let nom: String
     let inscrits: Int
+    let votants: Int
     let bulletinsDepouilles: Int
     let depouillementTermine: Bool
 }
@@ -242,6 +244,8 @@ struct ResultatGlobal: Content {
     let couleur: String
     let totalVoix: Int
     let pourcentage: Double
+    let totalVoixProjete: Int
+    let pourcentageProjete: Double
 }
 
 struct ParticipationHeure: Content {
