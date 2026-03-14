@@ -26,7 +26,7 @@ struct OwnerController: RouteCollection {
         owner.get("elections", ":electionId", "users", use: getUsers)
         owner.post("elections", ":electionId", "users", use: createUser)
         owner.put("elections", ":electionId", "users", ":userId", use: updateUser)
-        owner.delete("elections", ":electionId", "users", ":userId", use: deleteUser)
+        owner.delete("elections", ":electionId", "users", ":userId", use: blacklistUser)
 
         // Candidats management
         owner.post("elections", ":electionId", "candidats", use: createCandidat)
@@ -281,14 +281,25 @@ struct OwnerController: RouteCollection {
         return .noContent
     }
 
-    func deleteUser(req: Request) async throws -> HTTPStatus {
-        guard let id = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
-        guard let user = try await User.find(id, on: req.db) else { throw Abort(.notFound) }
+    // @TODO : Dans le futur, prévoir de conserver UserElection mais avec un statut particulier blacklisté
+    // ce statut sera utilisé pour filtrer les utilisateurs dans d'autres requêtes
+    func blacklistUser(req: Request) async throws -> HTTPStatus {
+        guard let userId = req.parameters.get("userId", as: UUID.self) else { throw Abort(.badRequest) }
+        guard let user = try await User.find(userId, on: req.db) else { throw Abort(.notFound) }
         // Don't allow deleting admin account
+        
         guard user.email != "admin@elections.local" else {
             throw Abort(.forbidden, reason: "Impossible de supprimer le compte admin principal")
         }
-        try await user.delete(on: req.db)
+        guard let electionId = req.parameters.get("electionId", as: UUID.self) else { throw Abort(.badRequest) }
+        try await UserElection.query(on: req.db)
+            .filter(\.$user.$id == userId)
+            .filter(\.$election.$id == electionId)
+            .delete()
+        try await UserBureau.query(on: req.db)
+            .filter(\.$user.$id == userId)
+            .filter(\.$election.$id == electionId)
+            .delete()
         return .noContent
     }
 
